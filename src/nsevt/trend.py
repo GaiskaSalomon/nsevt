@@ -1,194 +1,334 @@
-"""Non-stationary GPD tail scale: calibrated trend test and detectability.
+"""Permutation-calibrated trend inference for a GPD tail scale.
 
-A time-varying log-scale ``log sigma(t) = beta0 + beta1 t`` (with ``t`` in
-decades from the first block) lets the tail widen or narrow over time.  The
-inferential question is treated honestly:
-
-* the trend is tested by a **season/block permutation** test that is exact in
-  finite samples under exchangeability of the block labels, avoiding the
-  asymptotic chi-square that is unreliable for a boundary-adjacent parameter on
-  a few hundred exceedances;
-* a **Monte-Carlo power / minimum-detectable-effect (MDE)** analysis turns any
-  non-rejection into a quantitative statement of what the record can resolve.
-
-Ported from the frozen thesis implementation.
+The model is ``log sigma(t) = beta0 + beta1 t``, with ``t`` measured in
+decades.  The primary statistic is the likelihood-ratio (LR) statistic for a
+constant versus linearly varying scale.  Calibration permutes complete block
+labels: observations within a block remain together while the block's time
+label is reassigned.  The resulting test is exact only under exchangeability
+of those block labels under the null; otherwise it is a design-based
+sensitivity analysis, not a universal dependence correction.
 """
 from __future__ import annotations
 
 from typing import Optional, Sequence
 
 import numpy as np
+from scipy.optimize import minimize
 from scipy.stats import chi2
 
 _XI0 = (-0.4, -0.25, -0.1, 0.05, 0.2)
 
 
+def _validate_design(z, block):
+    z = np.asarray(z, dtype=float)
+    block = np.asarray(block)
+    if z.ndim != 1 or block.ndim != 1 or z.size != block.size:
+        raise ValueError("z and block must be matching 1-D arrays")
+    if z.size < 3:
+        raise ValueError("need at least 3 excesses")
+    if np.any(~np.isfinite(z)) or np.any(z < 0) or np.ptp(z) == 0:
+        raise ValueError("z must contain finite, non-negative, varying excesses")
+    try:
+        block_float = block.astype(float)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("block labels must be numeric time values") from exc
+    if np.any(~np.isfinite(block_float)) or np.unique(block_float).size < 2:
+        raise ValueError("block must contain at least 2 distinct finite time labels")
+    return z, block_float
+
+
 def _nll_ns(par, z, t, varying):
-    from scipy.optimize import minimize  # noqa: F401  (kept local; see _fit_ns)
-    xi = par[0]
-    s = np.exp(par[1] + par[2] * t) if varying else np.exp(np.full_like(t, par[1]))
-    if np.any(~np.isfinite(s)):
-        return 1e10
+    xi = float(par[0])
+    log_s = par[1] + par[2] * t if varying else np.full_like(t, par[1])
+    if not np.isfinite(xi) or xi <= -0.999 or np.any(~np.isfinite(log_s)):
+        return 1e100
+    sigma = np.exp(log_s)
+    if np.any(~np.isfinite(sigma)):
+        return 1e100
+    y = 1.0 + xi * z / sigma
+    if np.any(y <= 0):
+        return 1e100
     if abs(xi) < 1e-8:
-        return np.sum(np.log(s) + z / s)
-    y = 1.0 + xi * z / s
-    if np.any(y <= 1e-12):
-        return 1e10
-    return np.sum(np.log(s)) + (1.0 + 1.0 / xi) * np.sum(np.log(y))
+        return float(np.sum(log_s + z / sigma))
+    return float(np.sum(log_s) + (1.0 + 1.0 / xi) * np.sum(np.log(y)))
 
 
 def _fit_ns(z, t, varying):
-    from scipy.optimize import minimize
     best, bp = np.inf, None
+    mean_z = max(float(np.mean(z)), 1e-8)
     for xi0 in _XI0:
-        p0 = [xi0, np.log(max(np.mean(z), 1e-3)), 0.0]
-        r = minimize(_nll_ns, p0, args=(z, t, varying), method="Nelder-Mead",
-                     options={"maxiter": 60000, "maxfev": 60000,
-                              "xatol": 1e-10, "fatol": 1e-10})
-        if r.fun < best:
-            best, bp = r.fun, r.x
-    return bp, float(best)
+        p0 = [xi0, np.log(mean_z), 0.0] if varying else [xi0, np.log(mean_z)]
+        r = minimize(
+            _nll_ns,
+            p0,
+            args=(z, t, varying),
+            method="Nelder-Mead",
+            options={"maxiter": 30000, "maxfev": 30000, "xatol": 1e-8, "fatol": 1e-8},
+        )
+        if r.success and np.isfinite(r.fun) and r.fun < best:
+            best, bp = float(r.fun), np.asarray(r.x, dtype=float)
+    if bp is None:
+        raise RuntimeError("non-stationary GPD optimization failed")
+    return bp, best
 
 
 def _decades(block, ref: Optional[float]) -> np.ndarray:
-    block = np.asarray(block, float)
+    block = np.asarray(block, dtype=float)
     ref = float(np.min(block)) if ref is None else float(ref)
+    if not np.isfinite(ref):
+        raise ValueError("ref_block must be finite")
     return (block - ref) / 10.0
 
 
-def trend_permutation(z: Sequence[float], block: Sequence[float],
-                      n_perm: int = 3000, seed: int = 20260722,
-                      ref_block: Optional[float] = None) -> dict:
-    """Permutation-calibrated test of a time trend in the GPD log-scale.
+def trend_permutation(
+    z: Sequence[float],
+    block: Sequence[float],
+    n_perm: int = 3000,
+    seed: int = 20260722,
+    ref_block: Optional[float] = None,
+) -> dict:
+    """Test a linear trend in GPD log-scale by complete-block permutation.
 
-    Parameters
-    ----------
-    z : array
-        Excesses over the threshold (``x - u``).
-    block : array
-        The block label (e.g. year/season) of each excess; blocks are the
-        exchangeable unit reshuffled under the null.
-    n_perm : int
-        Number of block-label permutations.
-
-    Returns a dict with ``trend_per_decade``, ``sigma_change_pct`` over the
-    record, the likelihood-ratio statistic ``LR``, the asymptotic and the
-    (primary) permutation p-values, and ``_null`` (the permutation LR draws,
-    reused by :func:`min_detectable_effect`).
+    ``block`` identifies the exchangeable unit (for example, season or year).
+    Every permutation reassigns time labels to complete blocks and retains all
+    observations within their original block.  The reported Monte Carlo
+    p-value uses the plus-one correction; ``p_permutation_mcse`` quantifies its
+    simulation error.  The two-sided LR statistic is primary.
     """
-    z = np.asarray(z, float)
-    block = np.asarray(block)
+    z, block = _validate_design(z, block)
+    if not isinstance(n_perm, (int, np.integer)) or n_perm < 1:
+        raise ValueError("n_perm must be a positive integer")
     t = _decades(block, ref_block)
     p1, l1 = _fit_ns(z, t, True)
-    _, l0 = _fit_ns(z, t, False)
-    lr = 2 * (l0 - l1)
+    p0, l0 = _fit_ns(z, t, False)
+    lr = max(0.0, 2.0 * (l0 - l1))
     rng = np.random.default_rng(seed)
     uniq = np.unique(block)
     null = []
     for _ in range(n_perm):
-        mp = dict(zip(uniq, rng.permutation(uniq)))
-        tb = _decades(np.array([mp[b] for b in block]), ref_block)
+        permuted = rng.permutation(uniq)
+        mapping = dict(zip(uniq, permuted))
+        tb = _decades(np.array([mapping[b] for b in block]), ref_block)
         try:
             _, la = _fit_ns(z, tb, True)
-            null.append(2 * (l0 - la))  # stationary fit is permutation-invariant
-        except Exception:
-            pass
-    null = np.asarray(null)
-    p_perm = (1 + np.sum(null >= lr)) / (1 + len(null))
-    span = t.max() - t.min()
-    return dict(trend_per_decade=float(p1[2]), xi=float(p1[0]),
-                log_sigma0=float(p1[1]),
-                sigma_change_pct=float(100 * (np.exp(p1[2] * span) - 1)),
-                LR=float(lr), p_asymptotic=float(1 - chi2.cdf(lr, 1)),
-                p_permutation=float(p_perm), n_permutations=int(len(null)),
-                _null=null)
+        except RuntimeError:
+            continue
+        null.append(max(0.0, 2.0 * (l0 - la)))
+    if not null:
+        raise RuntimeError("all permutation fits failed")
+    null = np.asarray(null, dtype=float)
+    p_perm = float((1 + np.sum(null >= lr)) / (1 + len(null)))
+    mcse = float(np.sqrt(p_perm * (1.0 - p_perm) / (len(null) + 1)))
+    span = float(t.max() - t.min())
+    return {
+        "trend_per_decade": float(p1[2]),
+        "xi": float(p1[0]),
+        "log_sigma0": float(p1[1]),
+        "xi_null": float(p0[0]),
+        "log_sigma_null": float(p0[1]),
+        "sigma_change_pct": float(100.0 * (np.exp(p1[2] * span) - 1.0)),
+        "LR": lr,
+        "p_asymptotic": float(1.0 - chi2.cdf(lr, 1)),
+        "p_permutation": p_perm,
+        "p_permutation_mcse": mcse,
+        "n_permutations": int(len(null)),
+        "permutation_unit": "complete block label",
+        "_null": null,
+    }
 
 
-def trend_power(z: Sequence[float], block: Sequence[float], trends: Sequence[float],
-                xi_true: Optional[float] = None, log_sigma_true: Optional[float] = None,
-                crit: Optional[float] = None, n_rep: int = 300,
-                seed: int = 20260722, ref_block: Optional[float] = None) -> list:
-    """Monte-Carlo power to detect each trend in ``trends`` at the observed design.
+def trend_power(
+    z: Sequence[float],
+    block: Sequence[float],
+    trends: Sequence[float],
+    xi_true: Optional[float] = None,
+    log_sigma_true: Optional[float] = None,
+    crit: Optional[float] = None,
+    n_rep: int = 300,
+    seed: int = 20260722,
+    ref_block: Optional[float] = None,
+    n_perm_calibration: int = 499,
+    alpha: float = 0.05,
+) -> list:
+    """Estimate power for signed log-scale trends at the observed design.
 
-    Data are simulated under the fitted null shape/scale with an injected trend;
-    each replicate is tested against ``crit`` (the 95th percentile of the
-    permutation null by default).  Holds ``n`` and the block layout fixed at the
-    observed values, so power reflects the *record*, not an idealized design.
+    Simulations hold the number and temporal layout of excesses fixed.  Thus
+    the curve describes detectability under the fitted GPD simulation model;
+    it does not establish power against arbitrary misspecification.
     """
-    z = np.asarray(z, float)
-    block = np.asarray(block)
+    z, block = _validate_design(z, block)
+    trends = np.asarray(trends, dtype=float)
+    if trends.ndim != 1 or trends.size == 0 or np.any(~np.isfinite(trends)):
+        raise ValueError("trends must be a non-empty finite 1-D sequence")
+    if not isinstance(n_rep, (int, np.integer)) or n_rep < 1:
+        raise ValueError("n_rep must be a positive integer")
+    if not 0 < alpha < 1:
+        raise ValueError("alpha must lie strictly between 0 and 1")
     t = _decades(block, ref_block)
-    span = t.max() - t.min()
-    n = len(z)
+    span = float(t.max() - t.min())
     if xi_true is None or log_sigma_true is None or crit is None:
-        res = trend_permutation(z, block, seed=seed, ref_block=ref_block)
-        xi_true = res["xi"] if xi_true is None else xi_true
-        log_sigma_true = res["log_sigma0"] if log_sigma_true is None else log_sigma_true
-        crit = float(np.percentile(res["_null"], 95)) if crit is None else crit
-    rng = np.random.default_rng(seed)
+        res = trend_permutation(
+            z,
+            block,
+            n_perm=n_perm_calibration,
+            seed=seed,
+            ref_block=ref_block,
+        )
+        xi_true = res["xi_null"] if xi_true is None else float(xi_true)
+        log_sigma_true = (
+            res["log_sigma_null"] if log_sigma_true is None else float(log_sigma_true)
+        )
+        crit = (
+            float(np.quantile(res["_null"], 1 - alpha, method="higher"))
+            if crit is None
+            else float(crit)
+        )
+    if not all(np.isfinite(v) for v in (xi_true, log_sigma_true, crit)):
+        raise ValueError("xi_true, log_sigma_true and crit must be finite")
+    if xi_true <= -0.999 or crit < 0:
+        raise ValueError("xi_true must exceed -0.999 and crit must be non-negative")
+
     out = []
-    for tr in trends:
-        rej, R = 0, n_rep
-        for _ in range(R):
-            s = np.exp(log_sigma_true + tr * t)
-            u = rng.uniform(size=n)
+    for trend in trends:
+        # Common random numbers make signed effect comparisons less noisy.
+        rng = np.random.default_rng(seed)
+        rejected = successful = 0
+        for _ in range(n_rep):
+            sigma = np.exp(log_sigma_true + trend * t)
+            u = rng.uniform(size=len(z))
             if abs(xi_true) < 1e-8:
-                zs = -s * np.log(1 - u)
+                simulated = -sigma * np.log1p(-u)
             else:
-                zs = s / xi_true * ((1 - u) ** (-xi_true) - 1)
+                simulated = sigma / xi_true * ((1.0 - u) ** (-xi_true) - 1.0)
             try:
-                _, la = _fit_ns(zs, t, True)
-                _, lb = _fit_ns(zs, t, False)
-                if 2 * (lb - la) >= crit:
-                    rej += 1
-            except Exception:
-                R -= 1
-        out.append(dict(trend_per_decade=float(tr),
-                        sigma_change_pct=round(100 * (np.exp(tr * span) - 1), 1),
-                        power=round(rej / max(R, 1), 3)))
+                _, l1 = _fit_ns(simulated, t, True)
+                _, l0 = _fit_ns(simulated, t, False)
+            except RuntimeError:
+                continue
+            successful += 1
+            rejected += max(0.0, 2.0 * (l0 - l1)) >= crit
+        power = rejected / successful if successful else np.nan
+        mcse = np.sqrt(power * (1.0 - power) / successful) if successful else np.nan
+        out.append(
+            {
+                "trend_per_decade": float(trend),
+                "sigma_change_pct": round(100.0 * (np.exp(trend * span) - 1.0), 1),
+                "power": round(float(power), 3),
+                "power_mcse": round(float(mcse), 4),
+                "n_successful": successful,
+            }
+        )
     return out
 
 
-def min_detectable_effect(z: Sequence[float], block: Sequence[float],
-                          target_power: float = 0.80,
-                          grid: Optional[Sequence[float]] = None,
-                          n_rep: int = 300, seed: int = 20260722,
-                          ref_block: Optional[float] = None) -> dict:
-    """Smallest per-decade trend detectable at ``target_power`` (default 0.80)."""
-    if grid is None:
-        grid = [0.02, 0.05, 0.08, 0.10, 0.13, 0.15, 0.20, 0.25, 0.30]
-    curve = trend_power(z, block, grid, n_rep=n_rep, seed=seed, ref_block=ref_block)
-    ok = [c["trend_per_decade"] for c in curve if c["power"] >= target_power]
-    return dict(mde_per_decade=(min(ok) if ok else None),
-                target_power=target_power, power_curve=curve)
+def min_detectable_effect(
+    z: Sequence[float],
+    block: Sequence[float],
+    target_power: float = 0.80,
+    grid: Optional[Sequence[float]] = None,
+    n_rep: int = 300,
+    seed: int = 20260722,
+    ref_block: Optional[float] = None,
+    direction: str = "both",
+    n_perm_calibration: int = 499,
+    alpha: float = 0.05,
+) -> dict:
+    """Return detectable positive and/or negative per-decade effects.
 
-
-def block_bootstrap_trend_ci(z: Sequence[float], block: Sequence[float],
-                             n_boot: int = 1000, seed: int = 20260722,
-                             ref_block: Optional[float] = None) -> dict:
-    """Block bootstrap interval for the log-scale trend coefficient.
-
-    Entire blocks are resampled so shared within-block conditions are not
-    treated as independent replication.  Descriptive; complements the
-    permutation test rather than replacing it.
+    ``direction`` is ``"positive"``, ``"negative"``, or ``"both"``.  The
+    compatibility field ``mde_per_decade`` is the signed effect with the
+    smallest absolute magnitude reaching ``target_power``.
     """
-    z = np.asarray(z, float)
-    block = np.asarray(block)
-    t = _decades(block, ref_block)
+    if not 0 < target_power < 1:
+        raise ValueError("target_power must lie strictly between 0 and 1")
+    if direction not in {"positive", "negative", "both"}:
+        raise ValueError("direction must be 'positive', 'negative', or 'both'")
+    if grid is None:
+        magnitudes = np.array([0.02, 0.05, 0.08, 0.10, 0.13, 0.15, 0.20, 0.25, 0.30])
+    else:
+        magnitudes = np.abs(np.asarray(grid, dtype=float))
+        if magnitudes.ndim != 1 or magnitudes.size == 0 or np.any(~np.isfinite(magnitudes)):
+            raise ValueError("grid must be a non-empty finite 1-D sequence")
+        magnitudes = np.unique(magnitudes[magnitudes > 0])
+        if magnitudes.size == 0:
+            raise ValueError("grid must contain at least one non-zero effect")
+    effects = []
+    if direction in {"negative", "both"}:
+        effects.extend((-magnitudes[::-1]).tolist())
+    if direction in {"positive", "both"}:
+        effects.extend(magnitudes.tolist())
+    curve = trend_power(
+        z,
+        block,
+        effects,
+        alpha=alpha,
+        n_rep=n_rep,
+        n_perm_calibration=n_perm_calibration,
+        seed=seed,
+        ref_block=ref_block,
+    )
+
+    def reached(sign):
+        candidates = [
+            row["trend_per_decade"]
+            for row in curve
+            if row["power"] >= target_power and np.sign(row["trend_per_decade"]) == sign
+        ]
+        return min(candidates, key=abs) if candidates else None
+
+    neg = reached(-1)
+    pos = reached(1)
+    available = [x for x in (neg, pos) if x is not None]
+    mde = min(available, key=abs) if available else None
+    return {
+        "mde_per_decade": mde,
+        "mde_absolute": abs(mde) if mde is not None else None,
+        "mde_negative": neg,
+        "mde_positive": pos,
+        "direction": direction,
+        "target_power": target_power,
+        "power_curve": curve,
+    }
+
+
+def block_bootstrap_trend_ci(
+    z: Sequence[float],
+    block: Sequence[float],
+    n_boot: int = 1000,
+    seed: int = 20260722,
+    ref_block: Optional[float] = None,
+) -> dict:
+    """Descriptive percentile interval from a pairs block bootstrap.
+
+    Complete observed blocks are sampled with replacement and assigned to the
+    corresponding ordered bootstrap positions.  This complements rather than
+    replaces the block-label permutation test.
+    """
+    z, block = _validate_design(z, block)
+    if not isinstance(n_boot, (int, np.integer)) or n_boot < 1:
+        raise ValueError("n_boot must be a positive integer")
     blocks = np.unique(block)
     by_block = {b: np.flatnonzero(block == b) for b in blocks}
+    ordered_times = np.sort(blocks)
     rng = np.random.default_rng(seed)
     draws = []
     for _ in range(n_boot):
         sampled = rng.choice(blocks, size=len(blocks), replace=True)
-        idx = np.concatenate([by_block[b] for b in sampled])
+        z_parts, t_parts = [], []
+        for target_time, source_block in zip(ordered_times, sampled):
+            idx = by_block[source_block]
+            z_parts.append(z[idx])
+            t_parts.append(np.full(idx.size, target_time))
+        zb = np.concatenate(z_parts)
+        tb = np.concatenate(t_parts)
         try:
-            par, _ = _fit_ns(z[idx], t[idx], True)
-            draws.append(float(par[2]))
-        except Exception:
-            pass
+            par, _ = _fit_ns(zb, _decades(tb, ref_block), True)
+        except RuntimeError:
+            continue
+        draws.append(float(par[2]))
     if not draws:
         return {"ci95": [None, None], "n_boot": 0}
-    return {"ci95": [float(np.percentile(draws, 2.5)),
-                     float(np.percentile(draws, 97.5))],
-            "n_boot": int(len(draws))}
+    return {
+        "ci95": [float(np.percentile(draws, 2.5)), float(np.percentile(draws, 97.5))],
+        "n_boot": len(draws),
+    }

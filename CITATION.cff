@@ -1,28 +1,24 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "nsevt: Honest non-stationary extreme-value tail risk"
+title: "nsevt: Calibrated non-stationary extreme-value tail inference"
 abstract: >-
-  A small, dependency-light Python package for the honest analysis of trends in
-  environmental extremes: bounded-tail detection via peaks-over-threshold GPD with
-  profile-likelihood shape intervals and a bootstrap of the finite endpoint; a
-  permutation-calibrated tail-scale trend test; Monte-Carlo power and
-  minimum-detectable-effect analysis; multi-source transportability; block-conformal
-  prediction bands valid under temporal dependence; and a two-scale Wasserstein
-  distributional trend test.
+  A dependency-light Python package for peaks-over-threshold GPD profile
+  inference, complete-block permutation tests of tail-scale trend, Monte Carlo
+  power and signed minimum-detectable effects, and power-aware multi-source
+  robustness analysis.
 type: software
 authors:
   - family-names: "Salomón Guzmán"
     given-names: "Elí Gaiska"
     orcid: "https://orcid.org/0000-0002-3533-3900"
     affiliation: "Colegio de Postgraduados, Campus Montecillo"
-version: "0.1.0"
+version: "0.2.0"
 license: MIT
 keywords:
   - extreme value theory
   - generalized Pareto distribution
   - non-stationarity
   - permutation test
-  - conformal prediction
-  - Wasserstein distance
+  - power analysis
   - climate extremes
 repository-code: "https://github.com/GaiskaSalomon/nsevt"

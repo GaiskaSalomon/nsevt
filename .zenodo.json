@@ -1,6 +1,7 @@
 {
-  "title": "nsevt: Honest non-stationary extreme-value tail risk",
-  "description": "A small, dependency-light Python package for the honest analysis of trends in environmental extremes: bounded-tail detection (peaks-over-threshold GPD with profile-likelihood shape intervals and a bootstrap of the finite endpoint), a permutation-calibrated tail-scale trend test, Monte-Carlo power and minimum-detectable-effect analysis, multi-source transportability, block-conformal prediction bands valid under temporal dependence, and a two-scale Wasserstein distributional trend test.",
+  "title": "nsevt: Calibrated non-stationary extreme-value tail inference",
+  "description": "A dependency-light Python package for peaks-over-threshold GPD profile inference, complete-block permutation tests of tail-scale trend, Monte Carlo power and signed minimum-detectable effects, and power-aware multi-source robustness analysis.",
+  "version": "0.2.0",
   "upload_type": "software",
   "access_right": "open",
   "license": "MIT",
@@ -9,8 +10,7 @@
     "generalized Pareto distribution",
     "non-stationarity",
     "permutation test",
-    "conformal prediction",
-    "Wasserstein distance",
+    "power analysis",
     "climate extremes"
   ],
   "creators": [
