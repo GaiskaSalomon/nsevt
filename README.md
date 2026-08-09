@@ -4,6 +4,7 @@
 [![PyPI](https://img.shields.io/pypi/v/nsevt.svg)](https://pypi.org/project/nsevt/)
 [![Python versions](https://img.shields.io/pypi/pyversions/nsevt.svg)](https://pypi.org/project/nsevt/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![DOI](https://zenodo.org/badge/1328485209.svg)](https://zenodo.org/badge/latestdoi/1328485209)
 
 `nsevt` is a small, dependency-light Python package (NumPy + SciPy) for the
 **honest** analysis of trends in environmental extremes. It packages a workflow
