@@ -1,4 +1,4 @@
-# nsevt — non-stationary extreme-value tail risk with honest uncertainty
+# nsevt — non-stationary extreme-value tail inference
 
 [![CI](https://github.com/GaiskaSalomon/nsevt/actions/workflows/ci.yml/badge.svg)](https://github.com/GaiskaSalomon/nsevt/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/nsevt.svg)](https://pypi.org/project/nsevt/)
@@ -6,96 +6,122 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![DOI](https://zenodo.org/badge/1328485209.svg)](https://zenodo.org/badge/latestdoi/1328485209)
 
-`nsevt` is a small, dependency-light Python package (NumPy + SciPy) for the
-**honest** analysis of trends in environmental extremes. It packages a workflow
-that existing EVT tools (`extRemes`, `ismev`, `POT`, `pyextremes`, `texmex`) do
-not offer as a single, tested pipeline:
+`nsevt` is a dependency-light Python package for four connected tasks:
 
-1. **Bounded-tail detection** — a peaks-over-threshold GPD fit with a
-   profile-likelihood interval for the shape and a bootstrap of the finite upper
-   endpoint (`ξ<0` ⇒ a finite physical ceiling).
-2. **A permutation-calibrated trend test** on the tail scale — exact in finite
-   samples, avoiding the unreliable asymptotic χ² for a boundary-adjacent
-   parameter on a few hundred exceedances.
-3. **Power / minimum-detectable-effect** — turns any non-rejection into a
-   quantitative statement of what the record can resolve.
-4. **Multi-source transportability** ("evidence arena") — does an apparent trend
-   *survive* changing the data source, or is it an instrumental artifact?
-5. **Block-conformal prediction bands** — distribution-free coverage for extreme
-   quantiles **under temporal dependence**.
-6. **A two-scale Wasserstein trend test** for a series of distributions each
-   estimated from a small per-period sample, with an exact
-   location/scale/shape energy decomposition.
+1. peaks-over-threshold generalized Pareto (GPD) estimation with an adaptive
+   profile-likelihood interval for shape;
+2. a likelihood-ratio trend test calibrated by complete-block label
+   permutation;
+3. Monte Carlo power and signed minimum-detectable-effect (MDE) analysis; and
+4. a pre-specified multi-source robustness analysis that distinguishes
+   non-reproduction with adequate power from an unresolved comparison.
 
-The numerics of the GPD and permutation machinery are ported verbatim from the
-frozen, unit-tested research code, so results are reproducible and identical.
+The package uses deliberately measured terminology. A negative GPD shape point
+estimate gives a finite **model-conditional statistical endpoint**. `nsevt`
+reports support for a negative shape only when the entire 95% profile interval
+lies below zero; neither result is called a physical ceiling.
 
 ## Install
 
+From PyPI:
+
 ```bash
-pip install -e .            # from this directory
-pip install -e ".[demo]"    # also install the Streamlit demo dependencies
+pip install nsevt
+```
+
+For development or the optional Streamlit demonstration:
+
+```bash
+git clone https://github.com/GaiskaSalomon/nsevt.git
+cd nsevt
+pip install -e ".[dev,demo]"
 ```
 
 ## Quick start
 
 ```python
-import numpy as np, nsevt
+import numpy as np
+import nsevt
 
-rng = np.random.default_rng(0)
-# 500 observations; tail excesses above u=40 are bounded (xi<0)
-x = 40 + rng.gamma(2.0, 8.0, size=500)
+rng = np.random.default_rng(7)
+threshold, xi, sigma = 40.0, -0.25, 10.0
+years = np.repeat(np.arange(1980, 2030), 12)
+uniform = rng.uniform(size=years.size)
+excess = sigma / xi * ((1 - uniform) ** (-xi) - 1)
+values = threshold + excess
 
-fit = nsevt.gpd_pot(x, threshold=40)
+fit = nsevt.gpd_pot(values, threshold=threshold, n_boot=300)
 print(fit.summary())
-print("1-in-100 return level:", fit.return_level(100, rate=(x > 40).mean()))
+print("negative-shape estimate:", fit.bounded_estimate)
+print("negative shape supported by 95% CI:", fit.bounded_supported)
 
-# is there a trend in the tail scale? (block = year label per observation)
-year = rng.integers(1980, 2024, size=500)
-tr = nsevt.trend_permutation(x[x > 40] - 40, year[x > 40])
-print("trend/decade:", round(tr["trend_per_decade"], 3),
-      "p_perm:", tr["p_permutation"])
+trend = nsevt.trend_permutation(excess, years, n_perm=999)
+print("LR permutation p:", trend["p_permutation"],
+      "+/-", trend["p_permutation_mcse"])
 
-# what can the record resolve?
-mde = nsevt.min_detectable_effect(x[x > 40] - 40, year[x > 40])
-print("MDE per decade:", mde["mde_per_decade"])
-
-# distribution-free 90% prediction band under dependence
-band = nsevt.block_conformal(x, threshold=40, alpha=0.10)
-print("upper bound at sigma:", band.predict_upper(fit.sigma))
+mde = nsevt.min_detectable_effect(
+    excess, years, direction="both", n_rep=200, n_perm_calibration=499
+)
+print("positive MDE:", mde["mde_positive"])
+print("negative MDE:", mde["mde_negative"])
 ```
 
-## The multi-source arena
+## Multi-source robustness
+
+Sources must be genuinely distinct products with comparable temporal support;
+early and late halves of one record are not substitutes.
 
 ```python
-arena = nsevt.transportability(
-    [("operational", x_op, year_op),
-     ("independent", x_ind, year_ind),
-     ("homogenized", x_homog, year_homog)],
-    threshold=40)
-print(arena.table())
+result = nsevt.multisource_robustness(
+    [("product A", values_a, years_a),
+     ("product B", values_b, years_b)],
+    threshold=40,
+    reference="product A",
+)
+print(result.trend_status)
+print(result.table())
 ```
 
-The verdict distinguishes a **robust bounded tail** (shape reproduces in every
-source) from an **apparent trend that does not survive** the change of source —
-the core methodological contribution of the accompanying research.
+Possible trend statuses include `reproduced`, `inconsistent_direction`,
+`not_reproduced_with_power`, `not_resolved`, and `no_reference_signal`. Agreement
+or disagreement across sources is a robustness result; it does not by itself
+attribute a discrepancy to instruments, homogenization, or physical change.
 
-## Modules
+## Stable and experimental functionality
 
-| module | purpose |
-|---|---|
-| `nsevt.gpd` | POT-GPD fit, profile CI for ξ, endpoint bootstrap, return levels |
-| `nsevt.trend` | permutation trend test, power/MDE, block-bootstrap trend CI |
-| `nsevt.transportability` | multi-source evidence arena |
-| `nsevt.conformal` | block / split conformal prediction bands for tails |
-| `nsevt.twoscale` | two-scale Wasserstein distributional trend test + energy split |
+| status | module | purpose |
+|---|---|---|
+| stable | `nsevt.gpd` | GPD fit, profile interval, conditional endpoint bootstrap, return levels |
+| stable | `nsevt.trend` | LR block-label permutation, power/MDE, descriptive block-bootstrap interval |
+| stable | `nsevt.transportability` | multi-source robustness and power-aware status |
+| stable with assumptions | `split_conformal` | upper tail bound for exchangeable calibration scores |
+| experimental | `block_conformal` | block-aggregate dependence sensitivity diagnostic |
+| experimental | `twoscale_trend` | residual-bootstrap distribution-valued trend diagnostic |
+| experimental | `wasserstein_decomposition` | numerical quantile-grid energy decomposition |
 
-## Tests
+The exact assumptions and claim boundaries are documented in
+[`docs/assumptions.md`](docs/assumptions.md). Experimental APIs are retained for
+evaluation but are not part of the JOSS paper's central inferential claim.
+
+## Reproducibility and tests
+
+The implementation was adapted from research pipelines and then regression-
+checked; it is not represented as a verbatim copy. Randomized routines accept a
+seed and report the number of successful replicates. Run the validation suite
+with:
 
 ```bash
-pip install ".[test]" && pytest
+pip install -e ".[dev]"
+ruff check src tests demo
+pytest --cov=nsevt --cov-report=term-missing --cov-fail-under=80
+python -m build
+python -m twine check dist/*
 ```
 
-## License
+See [`docs/validation.md`](docs/validation.md) for what each test establishes
+and, equally importantly, what it does not establish.
 
-MIT. See `LICENSE`.
+## Citation and license
+
+Use [`CITATION.cff`](CITATION.cff) or the Zenodo DOI shown above. `nsevt` is
+released under the MIT License; see [`LICENSE`](LICENSE).
