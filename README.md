@@ -101,7 +101,7 @@ attribute a discrepancy to instruments, homogenization, or physical change.
 
 The exact assumptions and claim boundaries are documented in
 [`docs/assumptions.md`](docs/assumptions.md). Experimental APIs are retained for
-evaluation but are not part of the JOSS paper's central inferential claim.
+evaluation but are not part of the package's central inferential claim.
 
 ## Reproducibility and tests
 
