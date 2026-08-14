@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/GaiskaSalomon/nsevt/main/assets/nsevt-logo.png" alt="nsevt" width="200">
+</p>
+
 # nsevt — non-stationary extreme-value tail inference
 
 [![CI](https://github.com/GaiskaSalomon/nsevt/actions/workflows/ci.yml/badge.svg)](https://github.com/GaiskaSalomon/nsevt/actions/workflows/ci.yml)
