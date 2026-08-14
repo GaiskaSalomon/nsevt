@@ -77,6 +77,37 @@ One row per trend: `{"trend_per_decade", "sigma_change_pct", "power",
 ### `block_bootstrap_trend_ci(z, block, n_boot=1000, seed=..., ...) -> dict`
 `{"ci95": [lo, hi] (or [None, None]), "n_boot": int}`.
 
+## Sequential Monte Carlo precision (`nsevt.mc`)
+
+### `mcse_proportion(p_hat, R) -> float`, `mcse_mean(values) -> float`, `mcse_quantile(values, q) -> float`
+Scalar Monte Carlo standard error; `mcse_mean`/`mcse_quantile` return `nan`
+below their minimum sample size (2 and 30 finite values).
+
+### `required_replicates(p_hat, epsilon) -> int`
+Replicate budget `ceil(p (1 - p) / epsilon^2)` for `MCSE <= epsilon`.
+
+### `permutation_pvalue(t_obs, t_null, plus_one=True) -> dict`
+- `p`: plus-one Monte Carlo p-value (never zero); `n_exceed`, `B`.
+- `floor`: resolution floor `1 / (B + 1)`; `at_floor`: bool.
+- `mcse`: Monte Carlo standard error of `p`.
+
+### `SequentialRun.summary() -> dict` (also the result of `run_sequential`)
+- `analysis`, `kind`, `R_star`, `estimate`, `mcse`, `tolerance`.
+- `last_batch_change`, `stability_tolerance`, `n_stable_blocks`,
+  `min_stable_blocks`, `decision_stable`, `seed`.
+- `status`: `"converged"` or `"not_stabilised"`.
+- `trace`: list of `{"R", "value", "mcse"}` at the pre-specified checkpoints.
+- `batch_diagnostic`: `{"n_blocks", "block_size", "observed_sd_between_blocks",
+  "theoretical_mcse_per_block", "ratio", "block_means"}` (or
+  `{"n_blocks", "ratio": None}` when there are too few blocks).
+
+### `substream(seed, *tags) -> numpy.random.Generator`, `block_streams(seed, n_blocks, *tags) -> list`
+Reproducible, order-independent generators; `block_streams` returns one per
+sequential block.
+
+### `multiseed_summary(values_by_seed) -> dict`
+`{"n_seeds", "labels", "values", "mean", "sd_across_seeds", "range"}`.
+
 ## Multi-source robustness (`nsevt.transportability`)
 
 ### `multisource_robustness(sources, threshold, reference=None, ...) -> ArenaResult`

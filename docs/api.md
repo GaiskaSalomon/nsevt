@@ -43,6 +43,30 @@ continuous GPD to rounded data biases the shape and the endpoint. The endpoint
 interval is a profile interval on the reparameterised endpoint, not a percentile
 bootstrap.
 
+### `nsevt.mc` — sequential Monte Carlo precision
+
+`mc.mcse_proportion(p_hat, R)`, `mc.mcse_mean(values)` and
+`mc.mcse_quantile(values, q)` give the Monte Carlo standard error of a
+proportion, a mean and a sample quantile; `mc.required_replicates(p_hat,
+epsilon)` inverts the proportion formula to a replicate budget.
+`mc.permutation_pvalue(t_obs, t_null)` returns the floor-aware
+`(1 + #exceed) / (B + 1)` p-value with `at_floor` and its MCSE.
+
+`mc.run_sequential(name, draw, *, kind, epsilon, ...)` drives a
+`mc.SequentialRun`: it seeds the run with `r0` replicate outcomes from
+`draw(k, block_index)`, then grows it in blocks of `block` (never below `r_min`,
+never past `r_max`) and stops only when the MCSE is at or below `epsilon`, the
+estimate has been stable for `min_stable_blocks` checkpoints, and every callable
+in `decision_rules` has returned the same qualitative decision across that
+window. `kind` selects the MCSE formula (`"proportion"`, `"mean"`,
+`"quantile"`). The run exposes `summary()` (with `R_star`, `status`
+—`converged` or `not_stabilised`— `trace()`, and an independent-block
+`batch_diagnostic()`). `mc.substream(seed, *tags)` and `mc.block_streams(seed,
+n_blocks, *tags)` build reproducible, non-interfering random streams so that
+extending a run never perturbs the replicates already drawn, and
+`mc.multiseed_summary(values_by_seed)` audits an estimate across independent
+streams.
+
 ## Experimental APIs (`nsevt.experimental`)
 
 `split_conformal`, `block_conformal`, `ConformalBand`, `twoscale_trend`,

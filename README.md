@@ -10,7 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![DOI](https://zenodo.org/badge/1328485209.svg)](https://zenodo.org/badge/latestdoi/1328485209)
 
-`nsevt` is a dependency-light Python package for five connected tasks:
+`nsevt` is a dependency-light Python package for six connected tasks:
 
 1. peaks-over-threshold generalized Pareto (GPD) estimation with an adaptive
    profile-likelihood interval for the shape and a bootstrap of the finite
@@ -20,8 +20,11 @@
    the bias that rounding induces in both;
 3. a likelihood-ratio trend test calibrated by complete-block label
    permutation, with a grid-independent minimum-detectable effect;
-4. Monte Carlo power and signed minimum-detectable-effect (MDE) analysis; and
-5. a pre-specified multi-source robustness analysis that distinguishes
+4. Monte Carlo power and signed minimum-detectable-effect (MDE) analysis;
+5. a sequential Monte Carlo precision protocol that reports the simulation
+   error of every Monte Carlo estimate and grows a run until its MCSE, estimate
+   and qualitative decision have all stabilised; and
+6. a pre-specified multi-source robustness analysis that distinguishes
    non-reproduction with adequate power from an unresolved comparison.
 
 The package uses deliberately measured terminology. A negative GPD shape point
@@ -112,6 +115,32 @@ Possible trend statuses include `reproduced`, `inconsistent_direction`,
 or disagreement across sources is a robustness result; it does not by itself
 attribute a discrepancy to instruments, homogenization, or physical change.
 
+## Monte Carlo precision
+
+Any power, coverage, permutation p-value or bootstrap interval is itself a Monte
+Carlo estimate with a simulation error. `nsevt.mc` reports that error and grows a
+run in blocks until the Monte Carlo standard error, the estimate and every
+registered qualitative decision have all stabilised, rather than trusting a fixed
+replicate budget. It depends only on NumPy and is estimator-agnostic: you supply
+the replicate outcomes.
+
+```python
+from nsevt import mc
+
+streams = mc.block_streams(seed=20260814, n_blocks=64)
+
+def draw(k, block_index):                       # k rejection indicators
+    rng = streams[block_index]
+    return (rng.random(k) < 0.8).astype(float)   # e.g. a power study
+
+run = mc.run_sequential("power", draw, kind="proportion", epsilon=0.0025)
+s = run.summary()
+print(s["status"], s["R_star"], s["estimate"], s["mcse"])
+```
+
+`required_replicates(0.80, 0.0025)` reports the 25,600 replicates such a target
+needs, and `permutation_pvalue` returns the floor-aware `(1 + #exceed) / (B + 1)`.
+
 ## Stable and experimental functionality
 
 | status | module | purpose |
@@ -119,6 +148,7 @@ attribute a discrepancy to instruments, homogenization, or physical change.
 | stable | `nsevt.gpd` | GPD fit, profile interval, conditional endpoint bootstrap, return levels |
 | stable | `nsevt.grouped` | interval-censored (grouped) GPD fit; profile intervals for shape and endpoint |
 | stable | `nsevt.trend` | LR block-label permutation, power/MDE, descriptive block-bootstrap interval |
+| stable | `nsevt.mc` | sequential Monte Carlo precision: MCSE, stopping rule, traces, reproducible substreams |
 | stable | `nsevt.transportability` | multi-source robustness and power-aware status |
 | stable with assumptions | `split_conformal` | upper tail bound for exchangeable calibration scores |
 | experimental | `block_conformal` | block-aggregate dependence sensitivity diagnostic |

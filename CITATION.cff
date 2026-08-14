@@ -8,7 +8,10 @@ abstract: >-
   data, with profile-likelihood intervals for the shape and for the finite
   endpoint; a complete-block permutation test of a tail-scale trend with a
   grid-independent minimum-detectable effect and its Monte Carlo
-  uncertainty; and a power-aware multi-source robustness analysis. The
+  uncertainty; a sequential Monte Carlo precision protocol that reports the
+  simulation error of every estimate and stops a run only when its MCSE,
+  estimate and qualitative decision have stabilised; and a power-aware
+  multi-source robustness analysis. The
   endpoint interval profiles the reparameterised endpoint rather than
   resampling, and a bounded tail is reported only when the whole 95%
   profile interval for the shape lies below zero.
@@ -18,7 +21,7 @@ authors:
     given-names: "Elí Gaiska"
     orcid: "https://orcid.org/0000-0002-3533-3900"
     affiliation: "Colegio de Postgraduados, Campus Montecillo"
-version: "0.3.6"
+version: "0.4.0"
 license: MIT
 keywords:
   - extreme value theory

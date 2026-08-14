@@ -2,6 +2,24 @@
 
 All notable changes are recorded here.
 
+## [0.4.0] - 2026-08-14
+
+### Added
+
+- `nsevt.mc`: a sequential Monte Carlo precision protocol. Monte Carlo standard
+  errors for proportions, means and quantiles (`mcse_proportion`, `mcse_mean`,
+  `mcse_quantile`); the replicate budget for a target precision
+  (`required_replicates`); a floor-aware permutation/bootstrap p-value
+  (`permutation_pvalue`); and `SequentialRun` / `run_sequential`, which grow a
+  run in blocks and stop only when the MCSE target, estimate stability and every
+  registered qualitative decision have all settled, reporting a full trace,
+  an independent-block diagnostic and a `not_stabilised` status when a run
+  exhausts its budget. Reproducible, non-interfering random substreams
+  (`substream`, `block_streams`) and a cross-seed audit (`multiseed_summary`)
+  support extending a run without perturbing the replicates already drawn.
+  The module depends only on NumPy and is estimator-agnostic: it decides how
+  many replicates any power, coverage, p-value or bootstrap analysis needs.
+
 ## [0.3.6] - 2026-08-14
 
 ### Changed
