@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nsevt"
-version = "0.3.5"
+version = "0.3.6"
 description = "Peaks-over-threshold GPD tail inference with continuous and interval-censored (grouped) fits, profile-likelihood intervals for shape and endpoint, permutation trend tests, power/MDE, and multi-source robustness."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -57,3 +57,12 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
 ignore = ["E501", "UP035", "UP045"]
+
+[tool.mypy]
+ignore_missing_imports = true          # scipy / numpy ship partial stubs
+
+# The stable core is type-checked; the experimental conformal module (outside
+# the public-API stability guarantee) is exempt from the type gate.
+[[tool.mypy.overrides]]
+module = "nsevt.conformal"
+ignore_errors = true

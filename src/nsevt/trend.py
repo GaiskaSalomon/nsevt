@@ -10,16 +10,17 @@ sensitivity analysis, not a universal dependence correction.
 """
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from typing import Optional
 
 import numpy as np
+import numpy.typing as npt
 from scipy.optimize import minimize
 from scipy.stats import chi2
 
 _XI0 = (-0.4, -0.25, -0.1, 0.05, 0.2)
 
 
-def _validate_design(z, block):
+def _validate_design(z, block) -> tuple[np.ndarray, np.ndarray]:
     z = np.asarray(z, dtype=float)
     block = np.asarray(block)
     if z.ndim != 1 or block.ndim != 1 or z.size != block.size:
@@ -97,8 +98,8 @@ def _decades(block, ref: Optional[float]) -> np.ndarray:
 
 
 def trend_permutation(
-    z: Sequence[float],
-    block: Sequence[float],
+    z: npt.ArrayLike,
+    block: npt.ArrayLike,
     n_perm: int = 3000,
     seed: int = 20260722,
     ref_block: Optional[float] = None,
@@ -135,9 +136,9 @@ def trend_permutation(
         null.append(max(0.0, 2.0 * (l0 - fit[1])))
     if not null:
         raise RuntimeError("all permutation fits failed")
-    null = np.asarray(null, dtype=float)
-    p_perm = float((1 + np.sum(null >= lr)) / (1 + len(null)))
-    mcse = float(np.sqrt(p_perm * (1.0 - p_perm) / (len(null) + 1)))
+    null_arr = np.asarray(null, dtype=float)
+    p_perm = float((1 + np.sum(null_arr >= lr)) / (1 + len(null_arr)))
+    mcse = float(np.sqrt(p_perm * (1.0 - p_perm) / (len(null_arr) + 1)))
     span = float(t.max() - t.min())
     return {
         "trend_per_decade": float(p1[2]),
@@ -150,16 +151,16 @@ def trend_permutation(
         "p_asymptotic": float(1.0 - chi2.cdf(lr, 1)),
         "p_permutation": p_perm,
         "p_permutation_mcse": mcse,
-        "n_permutations": int(len(null)),
+        "n_permutations": int(len(null_arr)),
         "permutation_unit": "complete block label",
-        "_null": null,
+        "_null": null_arr,
     }
 
 
 def trend_power(
-    z: Sequence[float],
-    block: Sequence[float],
-    trends: Sequence[float],
+    z: npt.ArrayLike,
+    block: npt.ArrayLike,
+    trends: npt.ArrayLike,
     xi_true: Optional[float] = None,
     log_sigma_true: Optional[float] = None,
     crit: Optional[float] = None,
@@ -308,10 +309,10 @@ def _emd_interp(curve, sign, target, rng, reps):
 
 
 def min_detectable_effect(
-    z: Sequence[float],
-    block: Sequence[float],
+    z: npt.ArrayLike,
+    block: npt.ArrayLike,
     target_power: float = 0.80,
-    grid: Optional[Sequence[float]] = None,
+    grid: Optional[npt.ArrayLike] = None,
     n_rep: int = 300,
     seed: int = 20260722,
     ref_block: Optional[float] = None,
@@ -395,8 +396,8 @@ def min_detectable_effect(
 
 
 def block_bootstrap_trend_ci(
-    z: Sequence[float],
-    block: Sequence[float],
+    z: npt.ArrayLike,
+    block: npt.ArrayLike,
     n_boot: int = 1000,
     seed: int = 20260722,
     ref_block: Optional[float] = None,

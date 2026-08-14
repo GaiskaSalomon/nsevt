@@ -32,7 +32,7 @@ from .transportability import ArenaResult, SourceResult, multisource_robustness,
 from .trend import block_bootstrap_trend_ci, min_detectable_effect, trend_permutation, trend_power
 from .twoscale import TwoScaleResult, twoscale_trend, wasserstein_decomposition
 
-__version__ = "0.3.5"
+__version__ = "0.3.6"
 
 __all__ = [
     "fit_gpd", "profile_ci_xi", "upper_endpoint", "gpd_pot", "GPDFit",

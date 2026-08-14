@@ -13,16 +13,17 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Optional
 
 import numpy as np
+import numpy.typing as npt
 from scipy.optimize import brentq, minimize, minimize_scalar
 from scipy.stats import chi2
 
 _XI0 = (-0.4, -0.25, -0.1, 0.05, 0.2)
 
 
-def _validate_excesses(z: Sequence[float], minimum: int = 3) -> np.ndarray:
+def _validate_excesses(z: npt.ArrayLike, minimum: int = 3) -> np.ndarray:
     z = np.asarray(z, dtype=float)
     if z.ndim != 1 or z.size < minimum:
         raise ValueError(f"z must be a 1-D array of at least {minimum} excesses")
@@ -50,7 +51,7 @@ def _nll_const(par, z):
     return len(z) * log_s + (1.0 + 1.0 / xi) * np.sum(np.log(y))
 
 
-def fit_gpd(z: Sequence[float]) -> dict:
+def fit_gpd(z: npt.ArrayLike) -> dict:
     """Return the two-parameter GPD maximum-likelihood fit of ``z >= 0``.
 
     Multiple starts reduce sensitivity to local numerical failures.  A
@@ -115,7 +116,7 @@ def _profile_nll(xi: float, z: np.ndarray, sigma_hint: float) -> float:
 
 
 def _profile_ci_details(
-    z: Sequence[float],
+    z: npt.ArrayLike,
     level: float = 0.95,
     grid: Optional[np.ndarray] = None,
 ) -> tuple[float, float, tuple[float, float], tuple[bool, bool]]:
@@ -168,7 +169,7 @@ def _profile_ci_details(
 
 
 def profile_ci_xi(
-    z: Sequence[float], level: float = 0.95, grid: Optional[np.ndarray] = None
+    z: npt.ArrayLike, level: float = 0.95, grid: Optional[np.ndarray] = None
 ) -> tuple:
     """Profile-likelihood confidence interval for GPD shape ``xi``.
 
@@ -198,7 +199,7 @@ def profile_ci_xi(
 
 
 def upper_endpoint(
-    z: Sequence[float],
+    z: npt.ArrayLike,
     threshold: float,
     n_boot: int = 2000,
     seed: int = 20260722,
@@ -236,10 +237,10 @@ def upper_endpoint(
         xis.append(f["xi"])
         if f["xi"] < 0:
             ends.append(threshold - f["sigma"] / f["xi"])
-    ends = np.asarray(ends, dtype=float)
+    ends_arr = np.asarray(ends, dtype=float)
     ci = (
-        [float(np.percentile(ends, 2.5)), float(np.percentile(ends, 97.5))]
-        if ends.size
+        [float(np.percentile(ends_arr, 2.5)), float(np.percentile(ends_arr, 97.5))]
+        if ends_arr.size
         else [np.nan, np.nan]
     )
     return {
@@ -331,7 +332,7 @@ class GPDFit:
 
 
 def gpd_pot(
-    values: Sequence[float],
+    values: npt.ArrayLike,
     threshold: float,
     n_boot: int = 2000,
     seed: int = 20260722,

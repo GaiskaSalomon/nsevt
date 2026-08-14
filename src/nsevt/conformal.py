@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Optional, Sequence
 
 import numpy as np
+import numpy.typing as npt
 
 from .gpd import fit_gpd
 
@@ -37,7 +38,7 @@ class ConformalBand:
             raise ValueError("scale must be positive and finite")
         return float(self.threshold + self.q_standardized * scale)
 
-    def coverage(self, x_new: Sequence[float], scale) -> float:
+    def coverage(self, x_new: npt.ArrayLike, scale) -> float:
         """Empirical conditional-tail coverage on raw values ``x_new > u``."""
         x_new = np.asarray(x_new, dtype=float)
         if x_new.ndim != 1 or x_new.size == 0 or np.any(~np.isfinite(x_new)):
@@ -103,7 +104,7 @@ def _blocks(n: int, block_length: Optional[int], n_blocks: Optional[int]):
 
 
 def block_conformal(
-    x: Sequence[float],
+    x: npt.ArrayLike,
     threshold: float,
     alpha: float = 0.1,
     scale=None,
@@ -148,7 +149,7 @@ def block_conformal(
 
 
 def split_conformal(
-    x: Sequence[float], threshold: float, alpha: float = 0.1, scale=None
+    x: npt.ArrayLike, threshold: float, alpha: float = 0.1, scale=None
 ) -> ConformalBand:
     """Marginal split-conformal upper bound for exchangeable tail scores.
 

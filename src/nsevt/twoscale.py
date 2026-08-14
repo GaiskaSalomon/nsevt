@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Optional, Sequence
 
 import numpy as np
+import numpy.typing as npt
 
 
 def _validate_grid(grid):
@@ -74,7 +75,7 @@ class TwoScaleResult:
 
 
 def twoscale_trend(
-    samples: Sequence[Sequence[float]],
+    samples: Sequence[npt.ArrayLike],
     grid: Optional[np.ndarray] = None,
     weight=None,
     n_boot: int = 2000,
@@ -153,8 +154,8 @@ def twoscale_trend(
 
 
 def wasserstein_decomposition(
-    sample1: Sequence[float],
-    sample2: Sequence[float],
+    sample1: npt.ArrayLike,
+    sample2: npt.ArrayLike,
     grid: Optional[np.ndarray] = None,
 ) -> dict:
     """Numerical location/scale/shape decomposition on a quantile grid.

@@ -2,6 +2,15 @@
 
 All notable changes are recorded here.
 
+## [0.3.6] - 2026-08-14
+
+### Changed
+
+- Type the public API with `numpy.typing.ArrayLike` inputs and precise return
+  types; the stable core now type-checks cleanly under mypy (the experimental
+  conformal module is exempt, and a `[tool.mypy]` configuration is included).
+  Runtime behaviour is unchanged.
+
 ## [0.3.5] - 2026-08-14
 
 ### Changed

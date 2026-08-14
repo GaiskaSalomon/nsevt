@@ -23,9 +23,9 @@ only.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
 
 import numpy as np
+import numpy.typing as npt
 from scipy.optimize import minimize, minimize_scalar
 from scipy.stats import chi2
 
@@ -37,9 +37,9 @@ def _gpd_surv(z: np.ndarray, xi: float, sigma: float) -> np.ndarray:
 
 
 def interval_cells(
-    values: Sequence[float],
+    values: npt.ArrayLike,
     threshold: float,
-    grid: float | Sequence[float] = 5.0,
+    grid: float | npt.ArrayLike = 5.0,
     tol: float = 1e-6,
 ) -> tuple:
     """Rounding cell and truncation point of each exceedance, in excess scale.
@@ -61,9 +61,10 @@ def interval_cells(
     m = np.asarray(values, dtype=float)
     if m.ndim != 1:
         raise ValueError("values must be a 1-D array")
-    grids = (float(grid),) if np.ndim(grid) == 0 else tuple(float(g) for g in grid)
-    if not grids or any(g <= 0 for g in grids):
+    grid_arr = np.atleast_1d(np.asarray(grid, dtype=float))
+    if grid_arr.size == 0 or np.any(grid_arr <= 0):
         raise ValueError("grid widths must be positive")
+    grids = tuple(float(g) for g in grid_arr)
     half = np.full(m.size, min(grids) / 2.0)
     for g in sorted(grids):
         on = np.abs(m / g - np.round(m / g)) < tol
@@ -99,11 +100,11 @@ def _grouped_nll(par, a, b, trunc):
 
 
 def fit_gpd_grouped(
-    values: Sequence[float],
+    values: npt.ArrayLike,
     threshold: float,
-    grid: float | Sequence[float] = 5.0,
+    grid: float | npt.ArrayLike = 5.0,
     cells: tuple | None = None,
-    starts: Sequence[float] = (-0.4, -0.25, -0.1, 0.05),
+    starts: npt.ArrayLike = (-0.4, -0.25, -0.1, 0.05),
 ) -> dict:
     """Interval-censored GPD maximum-likelihood fit above ``threshold``.
 
@@ -121,7 +122,7 @@ def fit_gpd_grouped(
         cells = interval_cells(values[values > threshold], threshold, grid)
     a, b, trunc = cells
     best = (np.inf, None)
-    for x0 in starts:
+    for x0 in np.asarray(starts, dtype=float):
         init = np.array([x0, np.log(max(float(np.mean(z)), 1e-3))])
         r = minimize(
             _grouped_nll, init, args=(a, b, trunc), method="Nelder-Mead",
@@ -297,9 +298,9 @@ class GroupedGPDFit:
 
 
 def gpd_pot_grouped(
-    values: Sequence[float],
+    values: npt.ArrayLike,
     threshold: float,
-    grid: float | Sequence[float] = 5.0,
+    grid: float | npt.ArrayLike = 5.0,
     level: float = 0.95,
 ) -> GroupedGPDFit:
     """Fit an interval-censored GPD to discretised exceedances over ``threshold``.
