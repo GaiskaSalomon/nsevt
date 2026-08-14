@@ -2,10 +2,16 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "nsevt: Calibrated non-stationary extreme-value tail inference"
 abstract: >-
-  A dependency-light Python package for peaks-over-threshold GPD profile
-  inference, complete-block permutation tests of tail-scale trend, Monte Carlo
-  power and signed minimum-detectable effects, and power-aware multi-source
-  robustness analysis.
+  A dependency-light Python package for calibrated peaks-over-threshold
+  generalized Pareto (GPD) tail inference: continuous and
+  interval-censored (grouped) maximum-likelihood fits for discretised
+  data, with profile-likelihood intervals for the shape and for the finite
+  endpoint; a complete-block permutation test of a tail-scale trend with a
+  grid-independent minimum-detectable effect and its Monte Carlo
+  uncertainty; and a power-aware multi-source robustness analysis. The
+  endpoint interval profiles the reparameterised endpoint rather than
+  resampling, and a bounded tail is reported only when the whole 95%
+  profile interval for the shape lies below zero.
 type: software
 authors:
   - family-names: "Salomón-Guzmán"
