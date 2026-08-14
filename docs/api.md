@@ -18,8 +18,12 @@ draws.
 ### `min_detectable_effect(z, block, direction="both", ...)`
 
 Computes conditional simulation power on a user-supplied or default magnitude
-grid. Use `mde_positive` and `mde_negative`; `mde_per_decade` is retained as the
-smallest signed effect by absolute magnitude for compatibility.
+grid. `mde_positive` and `mde_negative` are the smallest grid points reaching the
+target power; `emd_positive` and `emd_negative` are the crossings of a monotone
+interpolant of the power curve, which do not depend on the grid spacing and come
+with Monte Carlo uncertainty intervals (`emd_positive_ci95`, `emd_negative_ci95`).
+`mde_per_decade` is retained as the smallest signed grid effect by absolute
+magnitude for compatibility.
 
 ### `multisource_robustness(sources, threshold, reference=..., ...)`
 

@@ -221,6 +221,62 @@ def trend_power(
     return out
 
 
+def _pchip_root(x, y, target):
+    """Monotone-interpolated crossing of a power curve at ``target``.
+
+    The detectable effect is the root of the monotone interpolant, not the first
+    grid point above ``target``, so it does not depend on the arbitrary mesh.
+    Returns ``None`` when the curve never reaches ``target``.
+    """
+    from scipy.interpolate import PchipInterpolator
+
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    order = np.argsort(x)
+    x, y = x[order], y[order]
+    y = np.maximum.accumulate(y)          # enforce monotonicity in the mesh
+    if x.size < 2 or y[-1] < target:
+        return None
+    if y[0] >= target:
+        return float(x[0])
+    f = PchipInterpolator(x, y)
+    lo, hi = float(x[0]), float(x[-1])
+    for _ in range(200):
+        mid = 0.5 * (lo + hi)
+        if f(mid) < target:
+            lo = mid
+        else:
+            hi = mid
+    return float(0.5 * (lo + hi))
+
+
+def _emd_interp(curve, sign, target, rng, reps):
+    """Signed interpolated EMD and its Monte-Carlo uncertainty for one direction.
+
+    The crossing is resampled by perturbing each power estimate within its
+    simulation standard error, so the EMD is reported as an interval rather than
+    an exact constant read off an arbitrary grid.
+    """
+    rows = [r for r in curve if np.sign(r["trend_per_decade"]) == sign]
+    if len(rows) < 2:
+        return None, None
+    x = np.array([abs(r["trend_per_decade"]) for r in rows])
+    y = np.array([r["power"] for r in rows])
+    se = np.array([r.get("power_mcse", 0.0) for r in rows])
+    root = _pchip_root(x, y, target)
+    if root is None:
+        return None, None
+    draws = []
+    for _ in range(reps):
+        yj = np.clip(y + rng.standard_normal(y.size) * se, 0.0, 1.0)
+        rj = _pchip_root(x, yj, target)
+        if rj is not None:
+            draws.append(sign * rj)
+    ci = ([float(np.percentile(draws, 2.5)), float(np.percentile(draws, 97.5))]
+          if draws else None)
+    return float(sign * root), ci
+
+
 def min_detectable_effect(
     z: Sequence[float],
     block: Sequence[float],
@@ -232,11 +288,17 @@ def min_detectable_effect(
     direction: str = "both",
     n_perm_calibration: int = 499,
     alpha: float = 0.05,
+    emd_uncertainty_reps: int = 2000,
 ) -> dict:
     """Return detectable positive and/or negative per-decade effects.
 
-    ``direction`` is ``"positive"``, ``"negative"``, or ``"both"``.  The
-    compatibility field ``mde_per_decade`` is the signed effect with the
+    ``direction`` is ``"positive"``, ``"negative"``, or ``"both"``.  Two readings
+    of the detectable effect are returned. ``mde_*`` is the smallest grid point
+    reaching ``target_power`` (kept for compatibility). ``emd_*`` is the crossing
+    of a monotone interpolant of the power curve, which does not depend on the
+    grid spacing and carries a Monte-Carlo uncertainty interval (``emd_*_ci95``)
+    obtained by resampling each power estimate within its simulation error. The
+    compatibility field ``mde_per_decade`` is the signed grid effect with the
     smallest absolute magnitude reaching ``target_power``.
     """
     if not 0 < target_power < 1:
@@ -280,11 +342,22 @@ def min_detectable_effect(
     pos = reached(1)
     available = [x for x in (neg, pos) if x is not None]
     mde = min(available, key=abs) if available else None
+
+    rng_u = np.random.default_rng(seed + 7919)
+    emd_neg, emd_neg_ci = _emd_interp(curve, -1, target_power, rng_u, emd_uncertainty_reps)
+    emd_pos, emd_pos_ci = _emd_interp(curve, 1, target_power, rng_u, emd_uncertainty_reps)
+    emd_available = [e for e in (emd_neg, emd_pos) if e is not None]
+    emd = min(emd_available, key=abs) if emd_available else None
     return {
         "mde_per_decade": mde,
         "mde_absolute": abs(mde) if mde is not None else None,
         "mde_negative": neg,
         "mde_positive": pos,
+        "emd_per_decade": emd,
+        "emd_negative": emd_neg,
+        "emd_positive": emd_pos,
+        "emd_negative_ci95": emd_neg_ci,
+        "emd_positive_ci95": emd_pos_ci,
         "direction": direction,
         "target_power": target_power,
         "power_curve": curve,

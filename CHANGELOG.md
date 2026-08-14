@@ -13,6 +13,10 @@ All notable changes are recorded here.
   shape and the finite endpoint; the interval-censored likelihood removes that
   bias, and the endpoint interval is a profile-likelihood interval on the
   reparameterised endpoint rather than a percentile bootstrap.
+- `min_detectable_effect` now reports a grid-independent detectable effect from a
+  monotone interpolation of the power curve (`emd_positive`, `emd_negative`,
+  `emd_per_decade`) with Monte Carlo uncertainty intervals (`emd_*_ci95`),
+  alongside the existing grid-based `mde_*` fields.
 
 ### Removed
 

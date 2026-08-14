@@ -45,6 +45,21 @@ def test_mde_returns_value_and_monotone_power():
     assert m["mde_negative"] is None
 
 
+def test_emd_interpolated_crossing_and_uncertainty():
+    # a design with real power: the 80% crossing falls between grid points
+    z, blk = _make(0.0, seed=5)
+    m = nsevt.min_detectable_effect(
+        z, blk, grid=[0.05, 0.10, 0.15, 0.20, 0.30], direction="positive",
+        n_rep=60, n_perm_calibration=99, seed=2, emd_uncertainty_reps=300,
+    )
+    emd, ci = m["emd_positive"], m["emd_positive_ci95"]
+    assert emd is not None and ci is not None
+    assert ci[0] <= emd <= ci[1]                       # uncertainty brackets the crossing
+    assert emd <= m["mde_positive"]                    # interpolant is not coarser than the grid
+    assert m["emd_negative"] is None                   # positive-only request
+    assert m["emd_per_decade"] == emd
+
+
 def test_block_bootstrap_ci_contains_estimate_direction():
     z, blk = _make(0.20, seed=6)
     ci = nsevt.block_bootstrap_trend_ci(z, blk, n_boot=40, seed=2)["ci95"]
