@@ -2,6 +2,18 @@
 
 All notable changes are recorded here.
 
+## [0.3.1] - 2026-08-14
+
+### Changed
+
+- Author name recorded as the compound surname `Salomón-Guzmán` in the package
+  metadata and citation files, for consistent academic citation.
+
+### Fixed
+
+- The continuous-integration smoke check no longer asserts a hardcoded version,
+  so version bumps do not fail the build.
+
 ## [0.3.0] - 2026-08-13
 
 ### Added

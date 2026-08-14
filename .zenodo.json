@@ -1,7 +1,7 @@
 {
   "title": "nsevt: Calibrated non-stationary extreme-value tail inference",
   "description": "A dependency-light Python package for peaks-over-threshold GPD profile inference, complete-block permutation tests of tail-scale trend, Monte Carlo power and signed minimum-detectable effects, and power-aware multi-source robustness analysis.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "upload_type": "software",
   "access_right": "open",
   "license": "MIT",
@@ -15,7 +15,7 @@
   ],
   "creators": [
     {
-      "name": "Salomón Guzmán, Elí Gaiska",
+      "name": "Salomón-Guzmán, Elí Gaiska",
       "orcid": "0000-0002-3533-3900",
       "affiliation": "Colegio de Postgraduados, Campus Montecillo"
     }
