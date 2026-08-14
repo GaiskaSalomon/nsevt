@@ -78,6 +78,22 @@ def fit_gpd(z: Sequence[float]) -> dict:
     return {"xi": float(bp[0]), "sigma": float(np.exp(bp[1])), "nll": best}
 
 
+def _fit_gpd_from(z, xi0, log_s0):
+    """Single-start GPD fit from a given ``(xi, log sigma)`` guess.
+
+    Used to warm-start bootstrap resamples from the point estimate, which lies
+    close to every resample's optimum, so one start suffices; ``None`` signals
+    that the caller should fall back to the multi-start :func:`fit_gpd`.
+    """
+    r = minimize(
+        _nll_const, [xi0, log_s0], args=(z,), method="Nelder-Mead",
+        options={"xatol": 1e-9, "fatol": 1e-9, "maxiter": 20000},
+    )
+    if r.success and np.isfinite(r.fun):
+        return {"xi": float(r.x[0]), "sigma": float(np.exp(r.x[1])), "nll": float(r.fun)}
+    return None
+
+
 def _profile_nll(xi: float, z: np.ndarray, sigma_hint: float) -> float:
     """Profile negative log-likelihood at fixed ``xi``."""
     lower = max(0.0, -float(xi) * float(np.max(z)))
@@ -201,15 +217,22 @@ def upper_endpoint(
         raise ValueError("n_boot must be a non-negative integer")
     fit = fit_gpd(z)
     xi, sig = fit["xi"], fit["sigma"]
+    log_sig = float(np.log(sig))
     endpoint = threshold - sig / xi if xi < 0 else np.inf
     rng = np.random.default_rng(seed)
     ends, xis = [], []
     for _ in range(n_boot):
         zb = rng.choice(z, size=len(z), replace=True)
-        try:
-            f = fit_gpd(zb)
-        except (RuntimeError, ValueError):
+        if np.ptp(zb) == 0:
             continue
+        # warm-start each resample from the point estimate; fall back to the
+        # multi-start fit only if the single start fails to converge
+        f = _fit_gpd_from(zb, xi, log_sig)
+        if f is None:
+            try:
+                f = fit_gpd(zb)
+            except (RuntimeError, ValueError):
+                continue
         xis.append(f["xi"])
         if f["xi"] < 0:
             ends.append(threshold - f["sigma"] / f["xi"])

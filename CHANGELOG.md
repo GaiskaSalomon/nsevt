@@ -2,6 +2,17 @@
 
 All notable changes are recorded here.
 
+## [0.3.2] - 2026-08-14
+
+### Changed
+
+- The endpoint bootstrap in `gpd_pot` / `upper_endpoint` warm-starts each
+  resample from the point estimate (with a multi-start fallback), giving
+  identical intervals about ten times faster.
+- The grouped shape-profile interval profiles the scale with a bounded 1-D
+  search instead of a simplex over a length-one vector (identical results,
+  fewer evaluations), and `interval_cells` accepts a 0-d array grid.
+
 ## [0.3.1] - 2026-08-14
 
 ### Changed
