@@ -2,6 +2,16 @@
 
 All notable changes are recorded here.
 
+## [0.3.5] - 2026-08-14
+
+### Changed
+
+- The experimental routines (`block_conformal`, `split_conformal`,
+  `ConformalBand`, `twoscale_trend`, `wasserstein_decomposition`,
+  `TwoScaleResult`) are collected under a new `nsevt.experimental` namespace and
+  documented as outside the public-API stability guarantee. They remain
+  importable from the top level for backward compatibility.
+
 ## [0.3.4] - 2026-08-14
 
 ### Documentation

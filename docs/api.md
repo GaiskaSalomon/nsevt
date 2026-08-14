@@ -43,12 +43,15 @@ continuous GPD to rounded data biases the shape and the endpoint. The endpoint
 interval is a profile interval on the reparameterised endpoint, not a percentile
 bootstrap.
 
-## Additional APIs
+## Experimental APIs (`nsevt.experimental`)
 
-`split_conformal` is stable only under its documented exchangeability and
-score-fitting assumptions. `block_conformal`, `twoscale_trend`, and
-`wasserstein_decomposition` are marked experimental in their results or
-documentation.
+`split_conformal`, `block_conformal`, `ConformalBand`, `twoscale_trend`,
+`wasserstein_decomposition`, and `TwoScaleResult` are collected under
+`nsevt.experimental`. `split_conformal` is stable only under its documented
+exchangeability and score-fitting assumptions; the others make narrower claims
+whose finite-sample guarantees are not established. They remain importable from
+the top level for backward compatibility, but are excluded from the public-API
+stability guarantee and may change without a major version bump.
 
 All randomized public functions accept an explicit seed. See function
 docstrings for argument-level validation and returned fields.

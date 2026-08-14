@@ -126,8 +126,9 @@ attribute a discrepancy to instruments, homogenization, or physical change.
 | experimental | `wasserstein_decomposition` | numerical quantile-grid energy decomposition |
 
 The exact assumptions and claim boundaries are documented in
-[`docs/assumptions.md`](docs/assumptions.md). Experimental APIs are retained for
-evaluation but are not part of the package's central inferential claim.
+[`docs/assumptions.md`](docs/assumptions.md). The experimental routines are
+collected under `nsevt.experimental` (still importable from the top level for
+backward compatibility) and are outside the public-API stability guarantee.
 
 ## Reproducibility and tests
 

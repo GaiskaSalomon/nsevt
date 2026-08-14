@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nsevt"
-version = "0.3.4"
+version = "0.3.5"
 description = "Peaks-over-threshold GPD tail inference with continuous and interval-censored (grouped) fits, profile-likelihood intervals for shape and endpoint, permutation trend tests, power/MDE, and multi-source robustness."
 readme = "README.md"
 requires-python = ">=3.9"

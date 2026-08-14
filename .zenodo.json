@@ -1,7 +1,7 @@
 {
   "title": "nsevt: Calibrated non-stationary extreme-value tail inference",
   "description": "A dependency-light Python package for calibrated peaks-over-threshold generalized Pareto (GPD) tail inference: continuous and interval-censored (grouped) maximum-likelihood fits for discretised data, with profile-likelihood intervals for the shape and for the finite endpoint; a complete-block permutation test of a tail-scale trend with a grid-independent minimum-detectable effect and its Monte Carlo uncertainty; and a power-aware multi-source robustness analysis. The endpoint interval profiles the reparameterised endpoint rather than resampling, and a bounded tail is reported only when the whole 95% profile interval for the shape lies below zero.",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "upload_type": "software",
   "access_right": "open",
   "license": "MIT",

@@ -13,8 +13,10 @@ environmental extremes:
 * :func:`gpd_pot_grouped` -- interval-censored (grouped) GPD fit for discretised
   exceedances, with profile-likelihood intervals for the shape and the endpoint.
 
-The conformal block aggregation and distribution-valued trend modules remain
-experimental and make narrower claims than the stable inferential core.
+The conformal block aggregation and distribution-valued trend routines are
+experimental and are grouped under :mod:`nsevt.experimental`; they are excluded
+from the public-API stability guarantee. They remain importable from the top
+level for backward compatibility.
 """
 from .conformal import ConformalBand, block_conformal, split_conformal
 from .gpd import GPDFit, fit_gpd, gpd_pot, profile_ci_xi, upper_endpoint
@@ -30,7 +32,7 @@ from .transportability import ArenaResult, SourceResult, multisource_robustness,
 from .trend import block_bootstrap_trend_ci, min_detectable_effect, trend_permutation, trend_power
 from .twoscale import TwoScaleResult, twoscale_trend, wasserstein_decomposition
 
-__version__ = "0.3.4"
+__version__ = "0.3.5"
 
 __all__ = [
     "fit_gpd", "profile_ci_xi", "upper_endpoint", "gpd_pot", "GPDFit",
