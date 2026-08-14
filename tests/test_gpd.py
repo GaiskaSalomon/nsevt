@@ -86,3 +86,37 @@ def test_profile_ci_brackets_point_estimate():
     xih, sh, (lo, hi) = nsevt.profile_ci_xi(x[x > 40] - 40)
     assert lo <= xih <= hi
     assert lo < 0  # bounded
+
+
+def test_profile_ci_with_explicit_grid():
+    z = _bounded(500)
+    z = z[z > 40] - 40
+    xih, sh, (lo, hi) = nsevt.profile_ci_xi(z, grid=np.linspace(-0.9, 0.5, 41))
+    assert lo <= xih <= hi
+
+
+def test_summary_branches_and_return_level_edges():
+    # bounded & supported -> summary "supports xi < 0"
+    fit = nsevt.gpd_pot(_bounded(500), threshold=40, n_boot=20)
+    assert "supports xi < 0" in fit.summary()
+    # return level with q >= 1 falls back to the threshold
+    assert fit.return_level(2, rate=0.4) == float(fit.threshold)
+
+    # xi == 0 branch of return_level, and the "inf"/"not available"/"xi >= 0"
+    # branches of summary
+    f0 = nsevt.GPDFit(
+        threshold=40, n_exceedances=100, xi=0.0, sigma=8.0,
+        xi_ci95=(-0.1, 0.1), endpoint=np.inf,
+        endpoint_ci95=[np.nan, np.nan], bootstrap_fraction_xi_negative=0.5,
+    )
+    assert np.isfinite(f0.return_level(100, rate=0.3))
+    s0 = f0.summary()
+    assert "xi_hat >= 0" in s0 and "inf" in s0 and "[not available]" in s0
+
+    # bounded_estimate but not interval-supported -> the middle summary branch
+    f1 = nsevt.GPDFit(
+        threshold=40, n_exceedances=100, xi=-0.08, sigma=8.0,
+        xi_ci95=(-0.25, 0.12), endpoint=140.0, endpoint_ci95=[80.0, 300.0],
+        bootstrap_fraction_xi_negative=0.7,
+    )
+    assert "includes zero" in f1.summary()
