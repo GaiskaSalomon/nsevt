@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nsevt"
-version = "0.2.0"
+version = "0.3.0"
 description = "GPD tail inference, block-label permutation trend tests, power analysis, and multi-source robustness."
 readme = "README.md"
 requires-python = ">=3.9"
