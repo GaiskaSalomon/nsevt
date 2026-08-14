@@ -61,7 +61,7 @@ def interval_cells(
     m = np.asarray(values, dtype=float)
     if m.ndim != 1:
         raise ValueError("values must be a 1-D array")
-    grids = (float(grid),) if np.isscalar(grid) else tuple(float(g) for g in grid)
+    grids = (float(grid),) if np.ndim(grid) == 0 else tuple(float(g) for g in grid)
     if not grids or any(g <= 0 for g in grids):
         raise ValueError("grid widths must be positive")
     half = np.full(m.size, min(grids) / 2.0)
@@ -137,10 +137,6 @@ def fit_gpd_grouped(
             "n": int(z.size)}
 
 
-def _grouped_profile_nll(theta, xi, a, b, trunc):
-    return _grouped_nll(np.concatenate([[xi], np.atleast_1d(theta)]), a, b, trunc)
-
-
 def profile_ci_xi_grouped(
     values, threshold, grid=5.0, cells=None, level=0.95,
     n_bisect=34, lo_limit=-0.95, hi_limit=0.60, fit=None,
@@ -163,9 +159,12 @@ def profile_ci_xi_grouped(
     target = ll_max - float(chi2.ppf(level, 1)) / 2.0
 
     def profile(xi):
-        r = minimize(_grouped_profile_nll, [log_sigma_hat], args=(xi, a, b, trunc),
-                     method="Nelder-Mead",
-                     options={"xatol": 1e-10, "fatol": 1e-10, "maxiter": 60000, "maxfev": 60000})
+        # profiling out the single scale is a smooth 1-D problem: a bounded
+        # scalar search is faster and steadier than simplex over a 1-vector
+        r = minimize_scalar(
+            lambda ls: _grouped_nll(np.array([xi, ls]), a, b, trunc),
+            bounds=(log_sigma_hat - 8.0, log_sigma_hat + 8.0),
+            method="bounded", options={"xatol": 1e-9})
         return -float(r.fun)
 
     def inside(xi):
