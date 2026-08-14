@@ -10,14 +10,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![DOI](https://zenodo.org/badge/1328485209.svg)](https://zenodo.org/badge/latestdoi/1328485209)
 
-`nsevt` is a dependency-light Python package for four connected tasks:
+`nsevt` is a dependency-light Python package for five connected tasks:
 
 1. peaks-over-threshold generalized Pareto (GPD) estimation with an adaptive
-   profile-likelihood interval for shape;
-2. a likelihood-ratio trend test calibrated by complete-block label
-   permutation;
-3. Monte Carlo power and signed minimum-detectable-effect (MDE) analysis; and
-4. a pre-specified multi-source robustness analysis that distinguishes
+   profile-likelihood interval for the shape and a bootstrap of the finite
+   endpoint;
+2. an interval-censored (grouped) GPD fit for discretised data, with
+   profile-likelihood intervals for the shape and the endpoint, which removes
+   the bias that rounding induces in both;
+3. a likelihood-ratio trend test calibrated by complete-block label
+   permutation, with a grid-independent minimum-detectable effect;
+4. Monte Carlo power and signed minimum-detectable-effect (MDE) analysis; and
+5. a pre-specified multi-source robustness analysis that distinguishes
    non-reproduction with adequate power from an unresolved comparison.
 
 The package uses deliberately measured terminology. A negative GPD shape point
@@ -68,6 +72,23 @@ mde = nsevt.min_detectable_effect(
 )
 print("positive MDE:", mde["mde_positive"])
 print("negative MDE:", mde["mde_negative"])
+print("interpolated EMD:", mde["emd_positive"], mde["emd_positive_ci95"])
+```
+
+## Discretised (grouped) data
+
+When values are recorded on a grid (for example wind speeds in 5 kt steps),
+fitting the continuous GPD to the rounded values biases the shape and the finite
+endpoint. `gpd_pot_grouped` fits the interval-censored likelihood instead and
+reports a profile-likelihood interval for both the shape and the endpoint (the
+endpoint interval profiles the reparameterised endpoint, not a percentile
+bootstrap).
+
+```python
+fit = nsevt.gpd_pot_grouped(values, threshold=40, grid=5.0)
+print(fit.summary())
+print("shape 95% CI:", fit.xi_ci95)
+print("endpoint 95% CI:", fit.endpoint_ci95)
 ```
 
 ## Multi-source robustness
@@ -96,6 +117,7 @@ attribute a discrepancy to instruments, homogenization, or physical change.
 | status | module | purpose |
 |---|---|---|
 | stable | `nsevt.gpd` | GPD fit, profile interval, conditional endpoint bootstrap, return levels |
+| stable | `nsevt.grouped` | interval-censored (grouped) GPD fit; profile intervals for shape and endpoint |
 | stable | `nsevt.trend` | LR block-label permutation, power/MDE, descriptive block-bootstrap interval |
 | stable | `nsevt.transportability` | multi-source robustness and power-aware status |
 | stable with assumptions | `split_conformal` | upper tail bound for exchangeable calibration scores |

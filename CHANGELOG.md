@@ -2,6 +2,14 @@
 
 All notable changes are recorded here.
 
+## [0.3.4] - 2026-08-14
+
+### Documentation
+
+- The README now documents the interval-censored (grouped) fit
+  (`gpd_pot_grouped`, `nsevt.grouped`) and the grid-independent minimum-
+  detectable effect, so the project page reflects the full 0.3.x feature set.
+
 ## [0.3.3] - 2026-08-14
 
 ### Added
