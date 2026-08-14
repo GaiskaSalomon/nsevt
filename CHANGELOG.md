@@ -2,6 +2,23 @@
 
 All notable changes are recorded here.
 
+## [0.3.0] - Unreleased
+
+### Added
+
+- `nsevt.grouped`: interval-censored (grouped) GPD tail inference for
+  discretised exceedances (`gpd_pot_grouped`, `fit_gpd_grouped`,
+  `interval_cells`, `profile_ci_xi_grouped`, `profile_endpoint_ci`,
+  `GroupedGPDFit`). Fitting the continuous GPD to rounded values biases the
+  shape and the finite endpoint; the interval-censored likelihood removes that
+  bias, and the endpoint interval is a profile-likelihood interval on the
+  reparameterised endpoint rather than a percentile bootstrap.
+
+### Removed
+
+- The maintainer publishing checklist and the PyPI publish workflow are no
+  longer tracked in the public repository.
+
 ## [0.2.0] - 2026-08-09
 
 ### Changed

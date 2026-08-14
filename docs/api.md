@@ -27,6 +27,18 @@ Each source is `(name, raw_values, block_times)`. The same threshold and
 procedures are applied to every source. The older function name
 `transportability` remains a compatibility alias.
 
+### `gpd_pot_grouped(values, threshold, grid=5.0, level=0.95)`
+
+Fits an interval-censored GPD to exceedances recorded on a discrete grid (a
+single precision, or several widths for a mixed-precision record). The returned
+`GroupedGPDFit` carries the shape and the finite endpoint, each with a
+profile-likelihood interval; `interval_cells`, `fit_gpd_grouped`,
+`profile_ci_xi_grouped`, and `profile_endpoint_ci` expose the individual pieces.
+Prefer this over `gpd_pot` when the values are rounded, because fitting the
+continuous GPD to rounded data biases the shape and the endpoint. The endpoint
+interval is a profile interval on the reparameterised endpoint, not a percentile
+bootstrap.
+
 ## Additional APIs
 
 `split_conformal` is stable only under its documented exchangeability and

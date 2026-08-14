@@ -20,6 +20,22 @@ shape. Always report `bootstrap_fraction_xi_negative` and the successful
 replicate count with that interval. Standard likelihood regularity is
 problematic at and below `xi = -0.5`; nsevt emits a warning in this regime.
 
+## Grouped (interval-censored) fit
+
+`gpd_pot_grouped` treats each recorded value as censored to its rounding cell
+and conditions on the per-observation selection rule (a value enters the sample
+because its *recorded* mark exceeded the threshold, so the smallest true excess
+that could have produced it is half a grid step). It assumes a single GPD shape
+and scale over the exceedances and that the stated grid widths describe the
+recording precision. The shape interval is a profile-likelihood interval under
+the same interval-censored likelihood, so it refers to the estimator whose point
+value is reported. The endpoint interval is a profile interval on the
+reparameterised endpoint, which respects the non-linearity of `M* = u -
+sigma/xi` where a percentile bootstrap does not; it remains model-conditional
+and is not a physical bound. As with the continuous fit, a negative shape
+supports a bounded tail only when the whole 95% profile interval lies below
+zero.
+
 ## Trend permutation
 
 The fitted alternative is linear in log scale:
