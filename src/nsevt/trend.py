@@ -72,6 +72,22 @@ def _fit_ns(z, t, varying):
     return bp, best
 
 
+def _fit_ns_from(z, t, varying, start):
+    """Single-start non-stationary GPD fit from a given ``start`` guess.
+
+    Warm-starts a permutation from the null maximum-likelihood estimate (the
+    constant-scale fit with zero trend), which sits near every permuted-label
+    optimum; ``None`` signals a fall-back to the multi-start :func:`_fit_ns`.
+    """
+    r = minimize(
+        _nll_ns, start, args=(z, t, varying), method="Nelder-Mead",
+        options={"maxiter": 30000, "maxfev": 30000, "xatol": 1e-8, "fatol": 1e-8},
+    )
+    if r.success and np.isfinite(r.fun):
+        return np.asarray(r.x, dtype=float), float(r.fun)
+    return None
+
+
 def _decades(block, ref: Optional[float]) -> np.ndarray:
     block = np.asarray(block, dtype=float)
     ref = float(np.min(block)) if ref is None else float(ref)
@@ -104,16 +120,19 @@ def trend_permutation(
     lr = max(0.0, 2.0 * (l0 - l1))
     rng = np.random.default_rng(seed)
     uniq = np.unique(block)
+    warm = [p0[0], p0[1], 0.0]          # null MLE: constant scale, zero trend
     null = []
     for _ in range(n_perm):
         permuted = rng.permutation(uniq)
         mapping = dict(zip(uniq, permuted))
         tb = _decades(np.array([mapping[b] for b in block]), ref_block)
-        try:
-            _, la = _fit_ns(z, tb, True)
-        except RuntimeError:
-            continue
-        null.append(max(0.0, 2.0 * (l0 - la)))
+        fit = _fit_ns_from(z, tb, True, warm)
+        if fit is None:
+            try:
+                fit = _fit_ns(z, tb, True)
+            except RuntimeError:
+                continue
+        null.append(max(0.0, 2.0 * (l0 - fit[1])))
     if not null:
         raise RuntimeError("all permutation fits failed")
     null = np.asarray(null, dtype=float)
@@ -188,10 +207,14 @@ def trend_power(
     if xi_true <= -0.999 or crit < 0:
         raise ValueError("xi_true must exceed -0.999 and crit must be non-negative")
 
+    t_mean = float(np.mean(t))
     out = []
     for trend in trends:
         # Common random numbers make signed effect comparisons less noisy.
         rng = np.random.default_rng(seed)
+        # warm-start each replicate's fits from the generating parameters
+        warm_v = [xi_true, log_sigma_true, trend]
+        warm_c = [xi_true, log_sigma_true + trend * t_mean]
         rejected = successful = 0
         for _ in range(n_rep):
             sigma = np.exp(log_sigma_true + trend * t)
@@ -200,13 +223,20 @@ def trend_power(
                 simulated = -sigma * np.log1p(-u)
             else:
                 simulated = sigma / xi_true * ((1.0 - u) ** (-xi_true) - 1.0)
-            try:
-                _, l1 = _fit_ns(simulated, t, True)
-                _, l0 = _fit_ns(simulated, t, False)
-            except RuntimeError:
-                continue
+            fv = _fit_ns_from(simulated, t, True, warm_v)
+            if fv is None:
+                try:
+                    fv = _fit_ns(simulated, t, True)
+                except RuntimeError:
+                    continue
+            fc = _fit_ns_from(simulated, t, False, warm_c)
+            if fc is None:
+                try:
+                    fc = _fit_ns(simulated, t, False)
+                except RuntimeError:
+                    continue
             successful += 1
-            rejected += max(0.0, 2.0 * (l0 - l1)) >= crit
+            rejected += max(0.0, 2.0 * (fc[1] - fv[1])) >= crit
         power = rejected / successful if successful else np.nan
         mcse = np.sqrt(power * (1.0 - power) / successful) if successful else np.nan
         out.append(

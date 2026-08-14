@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nsevt"
-version = "0.3.2"
+version = "0.3.3"
 description = "Peaks-over-threshold GPD tail inference with continuous and interval-censored (grouped) fits, profile-likelihood intervals for shape and endpoint, permutation trend tests, power/MDE, and multi-source robustness."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -27,6 +27,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Typing :: Typed",
 ]
 dependencies = ["numpy>=1.22", "scipy>=1.7"]
 
@@ -42,6 +43,9 @@ Issues = "https://github.com/GaiskaSalomon/nsevt/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+nsevt = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

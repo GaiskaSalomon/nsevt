@@ -18,7 +18,7 @@ authors:
     given-names: "Elí Gaiska"
     orcid: "https://orcid.org/0000-0002-3533-3900"
     affiliation: "Colegio de Postgraduados, Campus Montecillo"
-version: "0.3.2"
+version: "0.3.3"
 license: MIT
 keywords:
   - extreme value theory

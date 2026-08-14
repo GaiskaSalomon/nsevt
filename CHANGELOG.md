@@ -2,6 +2,20 @@
 
 All notable changes are recorded here.
 
+## [0.3.3] - 2026-08-14
+
+### Added
+
+- A project logo, shown at the top of the README.
+- `py.typed` marker (PEP 561): the package now ships type information for
+  downstream type checkers and declares the "Typing :: Typed" classifier.
+
+### Changed
+
+- The permutation trend test and the Monte Carlo power / minimum-detectable-
+  effect analysis warm-start each refit from the null (or generating) estimate,
+  with a multi-start fallback, giving identical results about five times faster.
+
 ## [0.3.2] - 2026-08-14
 
 ### Changed
