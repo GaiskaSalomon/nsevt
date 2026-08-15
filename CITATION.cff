@@ -7,7 +7,7 @@ abstract: >-
   interval-censored (grouped) maximum-likelihood fits for discretised
   data, with profile-likelihood intervals for the shape and for the finite
   endpoint; a complete-block permutation test of a tail-scale trend with a
-  grid-independent minimum-detectable effect and its Monte Carlo
+  interpolated minimum-detectable effect and its Monte Carlo
   uncertainty; a sequential Monte Carlo precision protocol that reports the
   simulation error of every estimate and stops a run only when its MCSE,
   estimate and qualitative decision have stabilised; and a power-aware
@@ -21,7 +21,9 @@ authors:
     given-names: "Elí Gaiska"
     orcid: "https://orcid.org/0000-0002-3533-3900"
     affiliation: "Colegio de Postgraduados, Campus Montecillo"
-version: "1.0.0"
+version: "1.0.1"
+date-released: "2026-08-15"
+doi: "10.5281/zenodo.21858232"
 license: MIT
 keywords:
   - extreme value theory
@@ -31,3 +33,4 @@ keywords:
   - power analysis
   - climate extremes
 repository-code: "https://github.com/GaiskaSalomon/nsevt"
+url: "https://doi.org/10.5281/zenodo.21858232"

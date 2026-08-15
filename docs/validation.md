@@ -31,4 +31,9 @@ Release validation consists of:
     python -m twine check dist/*
 
 Continuous integration repeats lint, tests, package build, and a clean wheel
-installation smoke test on supported Python versions.
+and source-distribution installation smoke test. The installed-distribution
+smoke test exercises the continuous and grouped fits, block permutation,
+grouped design and return levels, sequential Monte Carlo, finite-sample
+calibration, multi-source status, and experimental namespace using public entry
+points only. The publication workflow runs the same test on both artifacts
+before the PyPI job can start.

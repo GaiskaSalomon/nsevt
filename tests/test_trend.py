@@ -1,6 +1,8 @@
 import numpy as np
+import pytest
 
 import nsevt
+import nsevt.trend as trend_module
 
 
 def _make(trend_per_decade, n_per_year=25, years=range(1980, 2024), seed=0, xi=-0.25):
@@ -24,6 +26,7 @@ def test_no_trend_not_rejected():
     assert r["p_permutation"] > 0.05
     assert "_null" in r and len(r["_null"]) > 0
     assert r["p_permutation_mcse"] >= 0
+    assert r["n_permutations"] == 99
 
 
 def test_strong_trend_detected():
@@ -58,6 +61,24 @@ def test_emd_interpolated_crossing_and_uncertainty():
     assert emd <= m["mde_positive"]                    # interpolant is not coarser than the grid
     assert m["emd_negative"] is None                   # positive-only request
     assert m["emd_per_decade"] == emd
+
+
+def test_failed_permutation_refits_are_disclosed(monkeypatch):
+    z, blk = _make(0.0, n_per_year=5, years=range(2000, 2008), seed=9)
+    original_fit = trend_module._fit_ns
+    calls = {"n": 0}
+
+    def flaky_fit(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] > 2 and calls["n"] % 2:
+            raise RuntimeError("synthetic optimizer failure")
+        return original_fit(*args, **kwargs)
+
+    monkeypatch.setattr(trend_module, "_fit_ns_from", lambda *args: None)
+    monkeypatch.setattr(trend_module, "_fit_ns", flaky_fit)
+    with pytest.warns(RuntimeWarning, match="conditional on the successful refits"):
+        out = trend_module.trend_permutation(z, blk, n_perm=6, seed=4)
+    assert out["n_permutations"] == 3
 
 
 def test_block_bootstrap_ci_contains_estimate_direction():

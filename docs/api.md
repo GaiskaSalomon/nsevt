@@ -12,16 +12,21 @@ bootstrap summaries.
 
 Accepts excesses and matching numeric block times. It returns the signed
 log-scale trend per decade, LR statistic, asymptotic comparison p-value,
-plus-one block-label permutation p-value, Monte Carlo standard error, and null
-draws.
+plus-one block-label permutation p-value, Monte Carlo standard error, successful
+refit count, and null draws. If any requested refit fails, a `RuntimeWarning`
+makes explicit that the p-value is conditional on the successful refits.
 
 ### `min_detectable_effect(z, block, direction="both", ...)`
 
 Computes conditional simulation power on a user-supplied or default magnitude
 grid. `mde_positive` and `mde_negative` are the smallest grid points reaching the
-target power; `emd_positive` and `emd_negative` are the crossings of a monotone
-interpolant of the power curve, which do not depend on the grid spacing and come
-with Monte Carlo uncertainty intervals (`emd_positive_ci95`, `emd_negative_ci95`).
+target power; `emd_positive` and `emd_negative` are crossings of a monotone
+interpolant of the power curve. They are not restricted to grid nodes but still
+depend on the supplied grid, the interpolation, and Monte Carlo error;
+uncertainty intervals are returned as `emd_positive_ci95` and
+`emd_negative_ci95`. Those intervals perturb pointwise power estimates by their
+simulation errors; they are approximate and do not represent the covariance
+induced by common random numbers across the curve.
 `mde_per_decade` is retained as the smallest signed grid effect by absolute
 magnitude for compatibility.
 
@@ -49,6 +54,8 @@ bootstrap.
 `mc.mcse_quantile(values, q)` give the Monte Carlo standard error of a
 proportion, a mean and a sample quantile; `mc.required_replicates(p_hat,
 epsilon)` inverts the proportion formula to a replicate budget.
+At an observed proportion of exactly zero or one, `mcse_proportion` uses a
+Jeffreys half-count so a finite run does not claim zero simulation error.
 `mc.permutation_pvalue(t_obs, t_null)` returns the floor-aware
 `(1 + #exceed) / (B + 1)` p-value with `at_floor` and its MCSE.
 
@@ -67,6 +74,10 @@ extending a run never perturbs the replicates already drawn, and
 `mc.multiseed_summary(values_by_seed)` audits an estimate across independent
 streams.
 
+Invalid kinds, quantiles, tolerances and replicate budgets are rejected before
+the first draw. Each `draw(k, block_index)` result must contain exactly `k`
+values, and quantile runs compare block quantiles in their batch diagnostic.
+
 ### `nsevt.calibration` — finite-sample calibration
 
 Given a `simulate(rng, n)` callable that draws one data set from your DGP and
@@ -78,9 +89,10 @@ target, level=...)` returns the empirical coverage of an interval
 `estimator(sample) -> (lo, hi)` against `target` (a float or a zero-argument
 callable). `calibration.bias_rmse(estimator, simulate, n, truth, n_rep=...)`
 returns the bias, standard deviation and RMSE of a point estimator.
-`calibration.pseudo_true(estimator, simulate, R=...)` estimates the value the
-estimator is consistent for under a misspecified DGP, so coverage and bias can
-be judged against the honest target. The two proportion analyses accept and
+`calibration.pseudo_true(estimator, simulate, R=...)` computes a reproducible
+large-sample proxy for the estimator's limiting target under a misspecified
+DGP. Convergence of that proxy should be checked over increasing `R` and more
+than one seed before it is used as a coverage or bias target. The two proportion analyses accept and
 forward the `nsevt.mc` sequential parameters (`epsilon`, `r0`, `r_min`, `r_max`,
 `block`, `min_stable_blocks`, `seed`); set them small when the estimator is
 expensive, since each replicate refits the model.

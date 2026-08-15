@@ -61,7 +61,7 @@ from .transportability import ArenaResult, SourceResult, multisource_robustness,
 from .trend import block_bootstrap_trend_ci, min_detectable_effect, trend_permutation, trend_power
 from .twoscale import TwoScaleResult, twoscale_trend, wasserstein_decomposition
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 __all__ = [
     "fit_gpd", "profile_ci_xi", "upper_endpoint", "gpd_pot", "GPDFit",

@@ -2,6 +2,37 @@
 
 All notable changes are recorded here.
 
+## [Unreleased]
+
+## [1.0.1] - 2026-08-15
+
+### Fixed
+
+- Validate the grouped-design sample, design rank, censoring cells, profile
+  controls, return-level domain, and optimizer success before returning a fit.
+- Validate sequential Monte Carlo kinds, quantiles, tolerances and replicate
+  budgets; reject short `draw` results and prevent an initial block from
+  exceeding `r_max`.
+- Use block quantiles, rather than block means, in the independent-block
+  diagnostic for quantile runs.
+- Stabilise proportion MCSEs at observed proportions of exactly zero or one so
+  a finite Monte Carlo run cannot report zero simulation error.
+- Emit a `RuntimeWarning` when permutation refits fail and the reported p-value
+  is therefore conditional on the successful refits.
+- Reject invalid pseudo-true simulation budgets and non-finite proxy estimates.
+- Run a public-API smoke test against clean installations of both the wheel and
+  source distribution in CI and before the release workflow can publish.
+
+### Documentation
+
+- Clarify that the interpolated EMD is not restricted to effect-grid nodes but
+  still depends on the chosen grid and interpolation; its interval is a
+  pointwise-normal approximation that does not model common-random-number
+  covariance across the power curve.
+- Describe `pseudo_true` as a large-sample simulation proxy whose sensitivity
+  to sample size and seed must be checked, rather than as proof of an
+  estimator's limiting target.
+
 ## [1.0.0] - 2026-08-15
 
 **The public API is now stable.** From this release, the documented public
@@ -57,7 +88,7 @@ trend) remain outside the stability guarantee, as documented.
   power (under an alternative); `coverage` measures an interval estimator's
   empirical coverage against a nominal or `pseudo_true` target; `bias_rmse`
   reports the bias, standard deviation and RMSE of a point estimator; and
-  `pseudo_true` estimates the value an estimator is actually consistent for
+  `pseudo_true` gives a large-sample simulation proxy for a pseudo-true target
   under a misspecified DGP. The two proportion analyses run on the `nsevt.mc`
   sequential protocol, so each carries a Monte Carlo standard error and a
   stopping decision rather than a fixed replicate budget.
@@ -86,8 +117,8 @@ trend) remain outside the stability guarantee, as documented.
 ### Documentation
 
 - The README now documents the interval-censored (grouped) fit
-  (`gpd_pot_grouped`, `nsevt.grouped`) and the grid-independent minimum-
-  detectable effect, so the project page reflects the full 0.3.x feature set.
+  (`gpd_pot_grouped`, `nsevt.grouped`) and the interpolated minimum-detectable
+  effect, so the project page reflects the full 0.3.x feature set.
 
 ## [0.3.3] - 2026-08-14
 
@@ -137,7 +168,7 @@ trend) remain outside the stability guarantee, as documented.
   shape and the finite endpoint; the interval-censored likelihood removes that
   bias, and the endpoint interval is a profile-likelihood interval on the
   reparameterised endpoint rather than a percentile bootstrap.
-- `min_detectable_effect` now reports a grid-independent detectable effect from a
+- `min_detectable_effect` now reports an interpolated detectable effect from a
   monotone interpolation of the power curve (`emd_positive`, `emd_negative`,
   `emd_per_decade`) with Monte Carlo uncertainty intervals (`emd_*_ci95`),
   alongside the existing grid-based `mde_*` fields.

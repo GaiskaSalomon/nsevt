@@ -1,8 +1,9 @@
 # Return schemas (stable core)
 
 This is the return contract of the stable public API (`nsevt.gpd`,
-`nsevt.grouped`, `nsevt.trend`, `nsevt.transportability`). Under the planned 1.0
-stability guarantee, **removing or renaming** a documented key or field is a
+`nsevt.grouped`, `nsevt.trend`, `nsevt.transportability`, `nsevt.mc`,
+`nsevt.calibration`, and `nsevt.design`). Under the 1.0 stability guarantee,
+**removing or renaming** a documented key or field is a
 breaking change (2.0.0); **adding** keys or fields is a minor change (1.x).
 Keys beginning with an underscore are internal and not part of the contract.
 
@@ -61,6 +62,8 @@ Property: `bounded_supported`. Method: `summary() -> str`.
 - `p_permutation`: plus-one permutation p-value; `p_permutation_mcse`: its
   Monte Carlo standard error.
 - `n_permutations`: successful permutations; `permutation_unit`: str.
+- A `RuntimeWarning` is emitted if fewer than the requested permutations
+  succeed; the returned p-value is then conditional on those successful refits.
 - `_null`: internal null-statistic array (not part of the contract).
 
 ### `trend_power(z, block, trends, ...) -> list[dict]`
@@ -71,7 +74,8 @@ One row per trend: `{"trend_per_decade", "sigma_change_pct", "power",
 - Grid-based: `mde_per_decade`, `mde_absolute`, `mde_negative`, `mde_positive`.
 - Interpolated: `emd_per_decade`, `emd_negative`, `emd_positive`, each with a
   Monte Carlo interval `emd_negative_ci95` / `emd_positive_ci95` (`[lo, hi]` or
-  `None`).
+  `None`). The interval is a pointwise-normal approximation; it does not model
+  covariance across curve points generated with common random numbers.
 - `direction`, `target_power`, and `power_curve` (a `trend_power` list).
 
 ### `block_bootstrap_trend_ci(z, block, n_boot=1000, seed=..., ...) -> dict`
@@ -80,11 +84,15 @@ One row per trend: `{"trend_per_decade", "sigma_change_pct", "power",
 ## Sequential Monte Carlo precision (`nsevt.mc`)
 
 ### `mcse_proportion(p_hat, R) -> float`, `mcse_mean(values) -> float`, `mcse_quantile(values, q) -> float`
-Scalar Monte Carlo standard error; `mcse_mean`/`mcse_quantile` return `nan`
-below their minimum sample size (2 and 30 finite values).
+Scalar Monte Carlo standard error; `mcse_proportion` uses a Jeffreys half-count
+at observed proportions of exactly zero or one, so finite runs do not report
+zero simulation error. `mcse_mean`/`mcse_quantile` return `nan` below their
+minimum sample size (2 and 30 finite values).
 
 ### `required_replicates(p_hat, epsilon) -> int`
-Replicate budget `ceil(p (1 - p) / epsilon^2)` for `MCSE <= epsilon`.
+Replicate budget for `MCSE <= epsilon`: `ceil(p (1 - p) / epsilon^2)` away
+from zero and one, and the exact inversion of the boundary-stabilised MCSE at
+an observed boundary.
 
 ### `permutation_pvalue(t_obs, t_null, plus_one=True) -> dict`
 - `p`: plus-one Monte Carlo p-value (never zero); `n_exceed`, `B`.
@@ -99,7 +107,8 @@ Replicate budget `ceil(p (1 - p) / epsilon^2)` for `MCSE <= epsilon`.
 - `trace`: list of `{"R", "value", "mcse"}` at the pre-specified checkpoints.
 - `batch_diagnostic`: `{"n_blocks", "block_size", "observed_sd_between_blocks",
   "theoretical_mcse_per_block", "ratio", "block_means"}` (or
-  `{"n_blocks", "ratio": None}` when there are too few blocks).
+  `{"n_blocks", "ratio": None}` when there are too few blocks). The compatibility
+  key `block_means` contains block quantiles when `kind="quantile"`.
 
 ### `substream(seed, *tags) -> numpy.random.Generator`, `block_streams(seed, n_blocks, *tags) -> list`
 Reproducible, order-independent generators; `block_streams` returns one per

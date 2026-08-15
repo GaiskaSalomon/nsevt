@@ -40,6 +40,27 @@ def test_fit_recovers_a_positive_trend():
     assert f["xi"] < 0.0                         # bounded tail preserved
 
 
+@pytest.mark.parametrize(
+    "values, design, message",
+    [
+        ([45.0, 50.0, 55.0], np.ones((2, 1)), "aligned"),
+        ([45.0, 50.0, 55.0], np.ones((3, 2)), "full column rank"),
+        ([40.0, 50.0, 55.0], np.ones((3, 1)), "strictly above"),
+        ([45.0, np.nan, 55.0], np.ones((3, 1)), "finite 1-D"),
+    ],
+)
+def test_fit_rejects_invalid_or_unidentified_design(values, design, message):
+    with pytest.raises(ValueError, match=message):
+        nsevt.fit_grouped_design(values, 40.0, design)
+
+
+def test_fit_rejects_misaligned_cells():
+    cells = (np.zeros(2), np.ones(2), np.zeros(2))
+    with pytest.raises(ValueError, match="aligned"):
+        design.fit_grouped_design([45.0, 50.0, 55.0], 40.0,
+                                  np.ones((3, 1)), cells=cells)
+
+
 # -- profile_ci_coef -------------------------------------------------------
 def test_coef_ci_brackets_the_estimate():
     rng = np.random.default_rng(2)
@@ -85,6 +106,23 @@ def test_bounded_return_level_stays_below_the_endpoint():
     endpoint = u - sigma / xi
     rl = design.return_level(xi, sigma, u, rate, 1e6)
     assert rl < endpoint                         # can never exceed the ceiling
+
+
+@pytest.mark.parametrize(
+    "kwargs, message",
+    [
+        ({"sigma": 0.0}, "sigma"),
+        ({"rate": 0.0}, "rate"),
+        ({"rate": 1.1}, "rate"),
+        ({"m": 0.0}, "return periods"),
+    ],
+)
+def test_return_level_rejects_invalid_domain(kwargs, message):
+    args = {"xi": -0.2, "sigma": 15.0, "threshold": 40.0,
+            "rate": 0.4, "m": 100.0}
+    args.update(kwargs)
+    with pytest.raises(ValueError, match=message):
+        design.return_level(**args)
 
 
 # -- profile_ci_return_level ----------------------------------------------

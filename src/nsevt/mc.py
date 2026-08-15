@@ -45,10 +45,15 @@ RUNNING = "running"
 def mcse_proportion(p_hat: float, R: int) -> float:
     """Monte Carlo standard error of a proportion.
 
-    ``MCSE = sqrt(p (1 - p) / R)``.  Use for power, coverage and type-I error.
+    ``MCSE = sqrt(p (1 - p) / R)`` away from the boundaries.  At an observed
+    proportion of exactly zero or one, a Jeffreys half-count stabilisation is
+    used so a finite run never reports zero simulation error.  Use for power,
+    coverage and type-I error.
     """
     R = max(int(R), 1)
     p_hat = float(np.clip(p_hat, 0.0, 1.0))
+    if p_hat in {0.0, 1.0}:
+        p_hat = (p_hat * R + 0.5) / (R + 1.0)
     return math.sqrt(p_hat * (1.0 - p_hat) / R)
 
 
@@ -69,6 +74,8 @@ def mcse_quantile(values: npt.ArrayLike, q: float) -> float:
     (for example 2.5/50/97.5) whose stabilisation you want to require before
     stopping a bootstrap.  Returns ``nan`` for fewer than 30 finite values.
     """
+    if not np.isfinite(q) or not 0 < q < 1:
+        raise ValueError("q must lie strictly between 0 and 1")
     v = np.sort(np.asarray(values, dtype=float))
     v = v[np.isfinite(v)]
     R = v.size
@@ -84,13 +91,27 @@ def mcse_quantile(values: npt.ArrayLike, q: float) -> float:
 def required_replicates(p_hat: float, epsilon: float) -> int:
     """Replicates needed for ``MCSE <= epsilon`` at a proportion ``p_hat``.
 
-    ``R = ceil(p (1 - p) / epsilon^2)``.  At ``p = 0.80`` and
+    ``R = ceil(p (1 - p) / epsilon^2)`` away from the boundaries. At an
+    observed zero or one, the returned budget inverts the same Jeffreys-
+    stabilised MCSE as :func:`mcse_proportion`. At ``p = 0.80`` and
     ``epsilon = 0.0025`` this returns ``25600``, a useful sanity anchor when
     budgeting a power or coverage study near its most demanding point.
     """
     if not (epsilon > 0):
         raise ValueError("epsilon must be positive")
     p_hat = float(np.clip(p_hat, 0.0, 1.0))
+    if p_hat in {0.0, 1.0}:
+        upper = 1
+        while mcse_proportion(p_hat, upper) > epsilon:
+            upper *= 2
+        lower = upper // 2
+        while lower + 1 < upper:
+            mid = (lower + upper) // 2
+            if mcse_proportion(p_hat, mid) <= epsilon:
+                upper = mid
+            else:
+                lower = mid
+        return upper
     return int(math.ceil(p_hat * (1.0 - p_hat) / (epsilon ** 2)))
 
 
@@ -188,6 +209,31 @@ class SequentialRun:
     checkpoints: list = field(default_factory=list)
     status: str = RUNNING
 
+    def __post_init__(self) -> None:
+        """Reject an incoherent precision protocol before drawing replicates."""
+        if self.kind not in {"proportion", "mean", "quantile"}:
+            raise ValueError("kind must be 'proportion', 'mean', or 'quantile'")
+        if not np.isfinite(self.epsilon) or self.epsilon <= 0:
+            raise ValueError("epsilon must be positive and finite")
+        if not np.isfinite(self.tol_stability) or self.tol_stability < 0:
+            raise ValueError("tol_stability must be non-negative and finite")
+        for name in ("r0", "block", "r_min", "r_max", "min_stable_blocks"):
+            value = getattr(self, name)
+            if not isinstance(value, (int, np.integer)) or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
+        if self.r0 > self.r_max:
+            raise ValueError("r0 must not exceed r_max")
+        if self.r_min > self.r_max:
+            raise ValueError("r_min must not exceed r_max")
+        if not 0 < self.quantile < 1:
+            raise ValueError("quantile must lie strictly between 0 and 1")
+        if not isinstance(self.decision_rules, dict) or not all(
+            callable(fn) for fn in self.decision_rules.values()
+        ):
+            raise ValueError("decision_rules must map names to callables")
+        if any(not isinstance(r, (int, np.integer)) or r < 1 for r in self.trace_at):
+            raise ValueError("trace_at must contain positive integers")
+
     # -- accumulation ------------------------------------------------------
     def extend(self, new_values: npt.ArrayLike) -> SequentialRun:
         """Add a block of replicate outcomes and record a checkpoint."""
@@ -262,16 +308,24 @@ class SequentialRun:
         A ``ratio`` far from 1 signals a dependence or bookkeeping problem
         rather than a merely noisy run.
         """
+        if not isinstance(size, (int, np.integer)) or size < 1:
+            raise ValueError("size must be a positive integer")
         v = np.asarray(self.values, dtype=float)
         v = v[np.isfinite(v)]
         nb = v.size // size
         if nb < 2:
             return {"n_blocks": int(nb), "ratio": None}
-        blocks = v[:nb * size].reshape(nb, size).mean(axis=1)
+        shaped = v[:nb * size].reshape(nb, size)
+        if self.kind == "quantile":
+            blocks = np.quantile(shaped, self.quantile, axis=1)
+            full_mcse = mcse_quantile(v, self.quantile)
+            theoretical = float(full_mcse * math.sqrt(v.size / size))
+        else:
+            blocks = shaped.mean(axis=1)
         observed = float(blocks.std(ddof=1))
         if self.kind == "proportion":
             theoretical = mcse_proportion(float(v.mean()), size)
-        else:
+        elif self.kind == "mean":
             theoretical = float(v.std(ddof=1) / math.sqrt(size))
         return {
             "n_blocks": int(nb),
@@ -353,12 +407,18 @@ def run_sequential(
         trace_at=tuple(trace_at) if trace_at else SequentialRun.trace_at)
 
     bi = 0
-    run.extend(draw(r0, bi))
+    def draw_exact(k: int, block_index: int) -> np.ndarray:
+        values = np.asarray(draw(k, block_index), dtype=float).ravel()
+        if values.size != k:
+            raise ValueError(f"draw({k}, {block_index}) returned {values.size} values")
+        return values
+
+    run.extend(draw_exact(r0, bi))
     if progress:
         progress(run)
     while not run.should_stop() and run.R < r_max:
         bi += 1
-        run.extend(draw(min(block, r_max - run.R), bi))
+        run.extend(draw_exact(min(block, r_max - run.R), bi))
         if progress:
             progress(run)
     run.finalise()
@@ -395,7 +455,7 @@ def block_streams(seed: int, n_blocks: int, *tags: object) -> list:
     replicates already drawn.  Pass ``streams[block_index]`` inside the ``draw``
     callback of :func:`run_sequential`.
     """
-    if n_blocks < 1:
+    if not isinstance(n_blocks, (int, np.integer)) or n_blocks < 1:
         raise ValueError("n_blocks must be a positive integer")
     children = np.random.SeedSequence(_entropy(seed, *tags)).spawn(int(n_blocks))
     return [np.random.default_rng(c) for c in children]

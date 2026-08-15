@@ -51,4 +51,9 @@ jobs:
         run: |
           python -m venv /tmp/nsevt-wheel
           /tmp/nsevt-wheel/bin/pip install dist/*.whl
-          /tmp/nsevt-wheel/bin/python -c "import nsevt; print(nsevt.__version__); assert hasattr(nsevt, 'gpd_pot')"
+          /tmp/nsevt-wheel/bin/python tests/smoke_release.py
+      - name: Smoke-install source distribution
+        run: |
+          python -m venv /tmp/nsevt-sdist
+          /tmp/nsevt-sdist/bin/pip install dist/*.tar.gz
+          /tmp/nsevt-sdist/bin/python tests/smoke_release.py

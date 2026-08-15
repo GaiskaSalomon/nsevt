@@ -130,6 +130,13 @@ def test_pseudo_true_differs_from_nominal_under_rounding():
     assert abs(clean["pseudo_true"] - xi_true) < 0.03
 
 
+def test_pseudo_true_rejects_invalid_budget_and_nonfinite_estimate():
+    with pytest.raises(ValueError):
+        cal.pseudo_true(lambda s: 0.0, lambda r, n: np.zeros(n), R=2)
+    with pytest.raises(RuntimeError, match="non-finite"):
+        cal.pseudo_true(lambda s: np.nan, lambda r, n: np.zeros(n), R=10)
+
+
 # -- public surface --------------------------------------------------------
 def test_public_reexports():
     for name in ("rejection_rate", "coverage", "bias_rmse", "pseudo_true"):

@@ -10,6 +10,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![DOI](https://zenodo.org/badge/1328485209.svg)](https://zenodo.org/badge/latestdoi/1328485209)
 
+The current release is **nsevt 1.0.1**. Install the exact version with
+`pip install nsevt==1.0.1`; archived releases are linked by the Zenodo badge.
+
 `nsevt` is a dependency-light Python package for seven connected tasks:
 
 1. peaks-over-threshold generalized Pareto (GPD) estimation with an adaptive
@@ -19,7 +22,8 @@
    profile-likelihood intervals for the shape and the endpoint, which removes
    the bias that rounding induces in both;
 3. a likelihood-ratio trend test calibrated by complete-block label
-   permutation, with a grid-independent minimum-detectable effect;
+   permutation, with an interpolated minimum-detectable effect reported
+   together with its underlying effect grid;
 4. Monte Carlo power and signed minimum-detectable-effect (MDE) analysis;
 5. a sequential Monte Carlo precision protocol that reports the simulation
    error of every Monte Carlo estimate and grows a run until its MCSE, estimate
@@ -143,6 +147,8 @@ print(s["status"], s["R_star"], s["estimate"], s["mcse"])
 
 `required_replicates(0.80, 0.0025)` reports the 25,600 replicates such a target
 needs, and `permutation_pvalue` returns the floor-aware `(1 + #exceed) / (B + 1)`.
+At observed proportions of exactly zero or one, the MCSE uses a Jeffreys
+half-count rather than reporting zero simulation error.
 
 ## Finite-sample calibration
 
@@ -151,9 +157,11 @@ at your sample size and under your data generating process. You pass a
 `simulate(rng, n)` callable and your estimator or test; the suite measures the
 empirical type-I error or power (`rejection_rate`), interval coverage
 (`coverage`), and bias/RMSE (`bias_rmse`). Under a misspecified DGP an estimator
-is consistent for a *pseudo-true* value rather than the generating parameter, and
-`pseudo_true` estimates it so coverage and bias are reported against the honest
-target.
+may converge to a *pseudo-true* value rather than the generating parameter.
+`pseudo_true` provides a large-sample Monte Carlo proxy for that target so
+coverage and bias can be assessed against an explicit, reproducible reference.
+It is one large-sample fit, not proof of a limiting value; check increasing
+sample sizes and independent seeds before treating it as a target.
 
 ```python
 from nsevt import calibration as cal

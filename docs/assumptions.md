@@ -51,14 +51,21 @@ assumption.
 
 The LR statistic is two-sided. Report the number of permutations and the Monte
 Carlo standard error with the plus-one p-value. A large p-value is a
-non-rejection, not evidence that beta1 equals zero.
+non-rejection, not evidence that beta1 equals zero. If any optimizer refit
+fails, `trend_permutation` warns that the p-value is conditional on the
+successful permutations; it should not be presented as the requested complete
+randomization experiment.
 
 ## Power and MDE
 
 Power is conditional on the fitted simulation model, observed number of
 exceedances, observed block layout, chosen LR critical value, and effect grid.
 Positive and negative MDEs are reported separately. Simulation power does not
-protect against a misspecified tail model or measurement bias.
+protect against a misspecified tail model or measurement bias. The interpolated
+EMD interval perturbs the pointwise power estimates by their reported Monte
+Carlo errors. It is an approximate sensitivity interval, not a joint bootstrap:
+it does not model covariance across effect sizes induced by common random
+numbers.
 
 ## Multi-source robustness
 
@@ -90,9 +97,11 @@ of the estimator or test **on the data generating process you supply**. They are
 diagnostics of a procedure under a stated model, not evidence about the real
 world: a coverage of 0.95 against a well-specified DGP does not certify coverage
 under the true data, only that the interval is calibrated for that DGP. Under
-misspecification an estimator is consistent for its `pseudo_true` value rather
-than the generating parameter, and coverage should be judged against that honest
-target. Results carry Monte Carlo error (via `nsevt.mc`); read coverage and
+misspecification an estimator may converge to a pseudo-true value rather than
+the generating parameter. `pseudo_true` approximates such a target with one
+large simulated sample; it does not establish the existence or uniqueness of a
+limit, and sensitivity to `R` and seed should be checked before coverage is
+judged against it. Results carry Monte Carlo error (via `nsevt.mc`); read coverage and
 type-I numbers to their MCSE, not beyond it.
 
 ## Grouped regression and return levels (`nsevt.design`)

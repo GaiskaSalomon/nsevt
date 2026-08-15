@@ -10,9 +10,9 @@ of *your* estimator on *your* DGP rather than of an idealised model:
   it under a null DGP to get the type-I error, or under an alternative to get
   power.
 * :func:`coverage` -- the empirical probability that an interval estimator
-  covers a target value.  Under a misspecified DGP the estimator is consistent
-  for a *pseudo-true* value, not the generating parameter; :func:`pseudo_true`
-  estimates that value so coverage can be reported against the honest target.
+  covers a target value.  Under a misspecified DGP the estimator may converge
+  to a *pseudo-true* value rather than the generating parameter;
+  :func:`pseudo_true` supplies a large-sample simulation proxy for that target.
 * :func:`bias_rmse` -- the bias, variance and RMSE of a point estimator.
 
 Each proportion (rejection rate, coverage) is driven by the sequential protocol
@@ -203,16 +203,21 @@ def pseudo_true(
     seed: int = 20260814,
     tag: str = "pseudo_true",
 ) -> dict:
-    """The value a point ``estimator`` is actually consistent for under a DGP.
+    """Large-sample simulation proxy for an estimator's pseudo-true target.
 
     When the DGP is misspecified for the estimator's model (discretisation, a
-    mixture, dependence), the estimator does not converge to the nominal
-    parameter but to the closest value in its own model, the *pseudo-true*
-    value.  It is estimated as the estimate on a single large sample of size
-    ``R`` (the estimator's ``R -> infinity`` limit), so that coverage and bias
-    can be reported against the honest target rather than an unattainable one.
+    mixture, dependence), the estimator may converge to a target different
+    from the nominal parameter.  This function approximates that target by
+    fitting one simulated sample of size ``R``.  It does not prove convergence,
+    existence, or uniqueness of a pseudo-true value; callers should examine
+    sensitivity to increasing ``R`` and independent seeds before using the
+    result as a coverage or bias target.
     """
+    if not isinstance(R, (int, np.integer)) or R < 3:
+        raise ValueError("R must be an integer >= 3")
     rng = mc.substream(seed, tag)
     sample = simulate(rng, int(R))
     value = float(estimator(sample))
+    if not np.isfinite(value):
+        raise RuntimeError("estimator returned a non-finite pseudo-true proxy")
     return {"pseudo_true": value, "R": int(R)}

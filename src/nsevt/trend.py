@@ -10,12 +10,15 @@ sensitivity analysis, not a universal dependence correction.
 """
 from __future__ import annotations
 
+import warnings
 from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import minimize
 from scipy.stats import chi2
+
+from .mc import mcse_proportion
 
 _XI0 = (-0.4, -0.25, -0.1, 0.05, 0.2)
 
@@ -137,8 +140,17 @@ def trend_permutation(
     if not null:
         raise RuntimeError("all permutation fits failed")
     null_arr = np.asarray(null, dtype=float)
+    n_successful = int(len(null_arr))
+    n_failed = int(n_perm - n_successful)
+    if n_failed:
+        warnings.warn(
+            f"{n_failed} of {n_perm} permutation refits failed; the reported "
+            "p-value is conditional on the successful refits",
+            RuntimeWarning,
+            stacklevel=2,
+        )
     p_perm = float((1 + np.sum(null_arr >= lr)) / (1 + len(null_arr)))
-    mcse = float(np.sqrt(p_perm * (1.0 - p_perm) / (len(null_arr) + 1)))
+    mcse = mcse_proportion(p_perm, len(null_arr) + 1)
     span = float(t.max() - t.min())
     return {
         "trend_per_decade": float(p1[2]),
@@ -151,7 +163,7 @@ def trend_permutation(
         "p_asymptotic": float(1.0 - chi2.cdf(lr, 1)),
         "p_permutation": p_perm,
         "p_permutation_mcse": mcse,
-        "n_permutations": int(len(null_arr)),
+        "n_permutations": n_successful,
         "permutation_unit": "complete block label",
         "_null": null_arr,
     }
@@ -285,8 +297,8 @@ def _emd_interp(curve, sign, target, rng, reps):
     """Signed interpolated EMD and its Monte-Carlo uncertainty for one direction.
 
     The crossing is resampled by perturbing each power estimate within its
-    simulation standard error, so the EMD is reported as an interval rather than
-    an exact constant read off an arbitrary grid.
+    simulation standard error.  This pointwise approximation does not model the
+    covariance induced when the power curve uses common random numbers.
     """
     rows = [r for r in curve if np.sign(r["trend_per_decade"]) == sign]
     if len(rows) < 2:
@@ -326,9 +338,10 @@ def min_detectable_effect(
     ``direction`` is ``"positive"``, ``"negative"``, or ``"both"``.  Two readings
     of the detectable effect are returned. ``mde_*`` is the smallest grid point
     reaching ``target_power`` (kept for compatibility). ``emd_*`` is the crossing
-    of a monotone interpolant of the power curve, which does not depend on the
-    grid spacing and carries a Monte-Carlo uncertainty interval (``emd_*_ci95``)
-    obtained by resampling each power estimate within its simulation error. The
+    of a monotone interpolant of the power curve, which is not restricted to
+    grid nodes but still depends on the chosen grid and interpolation. It carries
+    a pointwise-normal Monte-Carlo sensitivity interval (``emd_*_ci95``) that
+    does not model common-random-number covariance across effects. The
     compatibility field ``mde_per_decade`` is the signed grid effect with the
     smallest absolute magnitude reaching ``target_power``.
     """

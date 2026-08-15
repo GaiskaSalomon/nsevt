@@ -13,6 +13,16 @@ def test_required_replicates_anchor():
     assert mc.mcse_proportion(0.80, 25600) == pytest.approx(0.0025, rel=1e-9)
 
 
+def test_mcse_proportion_is_not_zero_at_observed_boundaries():
+    assert mc.mcse_proportion(0.0, 1000) > 0
+    assert mc.mcse_proportion(1.0, 1000) > 0
+    for p in (0.0, 1.0):
+        budget = mc.required_replicates(p, 0.0025)
+        assert budget > 0
+        assert mc.mcse_proportion(p, budget) <= 0.0025
+        assert mc.mcse_proportion(p, budget - 1) > 0.0025
+
+
 def test_required_replicates_rejects_nonpositive_epsilon():
     with pytest.raises(ValueError):
         mc.required_replicates(0.5, 0.0)
@@ -26,6 +36,8 @@ def test_mcse_mean_and_quantile_shrink_with_R():
     assert mc.mcse_quantile(big, 0.5) < mc.mcse_quantile(small, 0.5)
     assert np.isnan(mc.mcse_mean([1.0]))
     assert np.isnan(mc.mcse_quantile(rng.normal(size=10), 0.5))  # < 30 values
+    with pytest.raises(ValueError):
+        mc.mcse_quantile(big, 1.0)
 
 
 # -- permutation p-value ---------------------------------------------------
@@ -108,6 +120,39 @@ def test_batch_diagnostic_ratio_near_one_for_iid():
     diag = run.batch_diagnostic(size=1000)
     assert diag["n_blocks"] == 20
     assert 0.5 < diag["ratio"] < 1.8
+    with pytest.raises(ValueError):
+        run.batch_diagnostic(size=0)
+
+
+def test_quantile_batch_diagnostic_uses_block_quantiles():
+    rng = np.random.default_rng(12)
+    run = mc.SequentialRun("q", kind="quantile", quantile=0.9)
+    run.extend(rng.exponential(size=20000))
+    diag = run.batch_diagnostic(size=1000)
+    assert diag["theoretical_mcse_per_block"] > 0
+    assert np.mean(diag["block_means"]) > 1.5  # block 0.9 quantiles, not means
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"kind": "median"},
+        {"quantile": 0.0},
+        {"epsilon": 0.0},
+        {"block": 0},
+        {"r0": 11, "r_max": 10},
+        {"r_min": 11, "r_max": 10},
+    ],
+)
+def test_sequential_run_rejects_incoherent_protocol(kwargs):
+    with pytest.raises(ValueError):
+        mc.SequentialRun("bad", **kwargs)
+
+
+def test_run_sequential_rejects_a_short_draw():
+    with pytest.raises(ValueError, match="returned 9 values"):
+        mc.run_sequential("short", lambda k, b: np.zeros(k - 1), r0=10,
+                          r_min=10, r_max=10, block=5)
 
 
 def test_trace_is_a_prefix_of_a_longer_run():
@@ -142,6 +187,8 @@ def test_block_streams_extend_without_perturbing_earlier_blocks():
         assert np.array_equal(six[i].random(10), twelve[i].random(10))
     with pytest.raises(ValueError):
         mc.block_streams(7, 0)
+    with pytest.raises(ValueError):
+        mc.block_streams(7, 1.5)
 
 
 def test_multiseed_summary_reports_spread():
