@@ -11,7 +11,8 @@
 [![DOI](https://zenodo.org/badge/1328485209.svg)](https://zenodo.org/badge/latestdoi/1328485209)
 
 The current release is **nsevt 1.0.1**. Install the exact version with
-`pip install nsevt==1.0.1`; archived releases are linked by the Zenodo badge.
+`pip install nsevt==1.0.1`. Its archived release is available at
+[Zenodo (DOI 10.5281/zenodo.21958106)](https://doi.org/10.5281/zenodo.21958106).
 
 `nsevt` is a dependency-light Python package for seven connected tasks:
 

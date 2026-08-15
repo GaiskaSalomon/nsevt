@@ -23,7 +23,7 @@ authors:
     affiliation: "Colegio de Postgraduados, Campus Montecillo"
 version: "1.0.1"
 date-released: "2026-08-15"
-doi: "10.5281/zenodo.21858232"
+doi: "10.5281/zenodo.21958106"
 license: MIT
 keywords:
   - extreme value theory
@@ -33,4 +33,4 @@ keywords:
   - power analysis
   - climate extremes
 repository-code: "https://github.com/GaiskaSalomon/nsevt"
-url: "https://doi.org/10.5281/zenodo.21858232"
+url: "https://doi.org/10.5281/zenodo.21958106"
