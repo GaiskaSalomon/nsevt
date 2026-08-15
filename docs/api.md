@@ -67,6 +67,24 @@ extending a run never perturbs the replicates already drawn, and
 `mc.multiseed_summary(values_by_seed)` audits an estimate across independent
 streams.
 
+### `nsevt.calibration` — finite-sample calibration
+
+Given a `simulate(rng, n)` callable that draws one data set from your DGP and
+your own estimator or test, this module measures finite-sample properties.
+`calibration.rejection_rate(test, simulate, n, alpha=...)` returns the empirical
+rejection probability of `test(sample) -> p` (the type-I error under a null DGP,
+power under an alternative). `calibration.coverage(estimator, simulate, n,
+target, level=...)` returns the empirical coverage of an interval
+`estimator(sample) -> (lo, hi)` against `target` (a float or a zero-argument
+callable). `calibration.bias_rmse(estimator, simulate, n, truth, n_rep=...)`
+returns the bias, standard deviation and RMSE of a point estimator.
+`calibration.pseudo_true(estimator, simulate, R=...)` estimates the value the
+estimator is consistent for under a misspecified DGP, so coverage and bias can
+be judged against the honest target. The two proportion analyses accept and
+forward the `nsevt.mc` sequential parameters (`epsilon`, `r0`, `r_min`, `r_max`,
+`block`, `min_stable_blocks`, `seed`); set them small when the estimator is
+expensive, since each replicate refits the model.
+
 ## Experimental APIs (`nsevt.experimental`)
 
 `split_conformal`, `block_conformal`, `ConformalBand`, `twoscale_trend`,

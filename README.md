@@ -10,7 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![DOI](https://zenodo.org/badge/1328485209.svg)](https://zenodo.org/badge/latestdoi/1328485209)
 
-`nsevt` is a dependency-light Python package for six connected tasks:
+`nsevt` is a dependency-light Python package for seven connected tasks:
 
 1. peaks-over-threshold generalized Pareto (GPD) estimation with an adaptive
    profile-likelihood interval for the shape and a bootstrap of the finite
@@ -23,8 +23,11 @@
 4. Monte Carlo power and signed minimum-detectable-effect (MDE) analysis;
 5. a sequential Monte Carlo precision protocol that reports the simulation
    error of every Monte Carlo estimate and grows a run until its MCSE, estimate
-   and qualitative decision have all stabilised; and
-6. a pre-specified multi-source robustness analysis that distinguishes
+   and qualitative decision have all stabilised;
+6. a finite-sample calibration suite that measures the empirical type-I error,
+   power, interval coverage and bias/RMSE of any estimator or test on your own
+   data generating process; and
+7. a pre-specified multi-source robustness analysis that distinguishes
    non-reproduction with adequate power from an unresolved comparison.
 
 The package uses deliberately measured terminology. A negative GPD shape point
@@ -141,6 +144,36 @@ print(s["status"], s["R_star"], s["estimate"], s["mcse"])
 `required_replicates(0.80, 0.0025)` reports the 25,600 replicates such a target
 needs, and `permutation_pvalue` returns the floor-aware `(1 + #exceed) / (B + 1)`.
 
+## Finite-sample calibration
+
+`nsevt.calibration` checks whether a method's asymptotic guarantees actually hold
+at your sample size and under your data generating process. You pass a
+`simulate(rng, n)` callable and your estimator or test; the suite measures the
+empirical type-I error or power (`rejection_rate`), interval coverage
+(`coverage`), and bias/RMSE (`bias_rmse`). Under a misspecified DGP an estimator
+is consistent for a *pseudo-true* value rather than the generating parameter, and
+`pseudo_true` estimates it so coverage and bias are reported against the honest
+target.
+
+```python
+from nsevt import calibration as cal
+
+def simulate(rng, n):                     # your data generating process
+    u = rng.uniform(size=n)
+    return 15.0 / -0.2 * ((1 - u) ** 0.2 - 1)      # GPD(xi=-0.2, sigma=15)
+
+def interval(sample):
+    _, _, ci = nsevt.profile_ci_xi(sample)
+    return ci
+
+cov = cal.coverage(interval, simulate, n=400, target=-0.2, level=0.95,
+                   epsilon=0.01, r0=1000, r_min=1000, block=500)
+print(cov["coverage"], cov["mcse"], cov["status"])
+```
+
+The proportion analyses run on the sequential protocol above, so each reports its
+Monte Carlo standard error and whether it stabilised.
+
 ## Stable and experimental functionality
 
 | status | module | purpose |
@@ -149,6 +182,7 @@ needs, and `permutation_pvalue` returns the floor-aware `(1 + #exceed) / (B + 1)
 | stable | `nsevt.grouped` | interval-censored (grouped) GPD fit; profile intervals for shape and endpoint |
 | stable | `nsevt.trend` | LR block-label permutation, power/MDE, descriptive block-bootstrap interval |
 | stable | `nsevt.mc` | sequential Monte Carlo precision: MCSE, stopping rule, traces, reproducible substreams |
+| stable | `nsevt.calibration` | finite-sample type-I/power, coverage, bias/RMSE and pseudo-true target |
 | stable | `nsevt.transportability` | multi-source robustness and power-aware status |
 | stable with assumptions | `split_conformal` | upper tail bound for exchangeable calibration scores |
 | experimental | `block_conformal` | block-aggregate dependence sensitivity diagnostic |

@@ -19,6 +19,16 @@ All notable changes are recorded here.
   support extending a run without perturbing the replicates already drawn.
   The module depends only on NumPy and is estimator-agnostic: it decides how
   many replicates any power, coverage, p-value or bootstrap analysis needs.
+- `nsevt.calibration`: finite-sample calibration of any estimator or test by
+  Monte Carlo, from user-supplied `simulate` / `estimator` / `test` callables.
+  `rejection_rate` measures the empirical type-I error (under a null DGP) or
+  power (under an alternative); `coverage` measures an interval estimator's
+  empirical coverage against a nominal or `pseudo_true` target; `bias_rmse`
+  reports the bias, standard deviation and RMSE of a point estimator; and
+  `pseudo_true` estimates the value an estimator is actually consistent for
+  under a misspecified DGP. The two proportion analyses run on the `nsevt.mc`
+  sequential protocol, so each carries a Monte Carlo standard error and a
+  stopping decision rather than a fixed replicate budget.
 
 ## [0.3.6] - 2026-08-14
 

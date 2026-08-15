@@ -14,13 +14,17 @@ environmental extremes:
   exceedances, with profile-likelihood intervals for the shape and the endpoint;
 * :mod:`nsevt.mc` -- a sequential Monte Carlo precision protocol (MCSE, an
   MCSE/stability/decision stopping rule and reproducible traces) that decides
-  how many replicates a power, coverage, p-value or bootstrap actually needs.
+  how many replicates a power, coverage, p-value or bootstrap actually needs;
+* :mod:`nsevt.calibration` -- finite-sample calibration of any estimator or test
+  by Monte Carlo (empirical type-I/power, interval coverage, bias/RMSE, and the
+  pseudo-true target under misspecification), driven by the sequential protocol.
 
 The conformal block aggregation and distribution-valued trend routines are
 experimental and are grouped under :mod:`nsevt.experimental`; they are excluded
 from the public-API stability guarantee. They remain importable from the top
 level for backward compatibility.
 """
+from .calibration import bias_rmse, coverage, pseudo_true, rejection_rate
 from .conformal import ConformalBand, block_conformal, split_conformal
 from .gpd import GPDFit, fit_gpd, gpd_pot, profile_ci_xi, upper_endpoint
 from .grouped import (
@@ -59,6 +63,7 @@ __all__ = [
     "mcse_proportion", "mcse_mean", "mcse_quantile", "required_replicates",
     "permutation_pvalue", "SequentialRun", "Checkpoint", "run_sequential",
     "substream", "block_streams", "multiseed_summary",
+    "rejection_rate", "coverage", "bias_rmse", "pseudo_true",
     "multisource_robustness", "transportability", "ArenaResult", "SourceResult",
     "block_conformal", "split_conformal", "ConformalBand",
     "twoscale_trend", "wasserstein_decomposition", "TwoScaleResult",

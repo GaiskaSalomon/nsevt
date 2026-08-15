@@ -108,6 +108,25 @@ sequential block.
 ### `multiseed_summary(values_by_seed) -> dict`
 `{"n_seeds", "labels", "values", "mean", "sd_across_seeds", "range"}`.
 
+## Finite-sample calibration (`nsevt.calibration`)
+
+### `rejection_rate(test, simulate, n, alpha=0.05, ...) -> dict`
+- `rate`, `mcse`, `alpha`, `n`, `R`, `status`.
+- `anticonservative`: bool (`rate` more than two MCSE above `alpha`).
+- `stopping`: the `SequentialRun.summary()`.
+
+### `coverage(estimator, simulate, n, target, level=0.95, ...) -> dict`
+- `coverage`, `mcse`, `nominal`, `target`, `n`, `R`, `status`.
+- `miscalibration`: `coverage - nominal`.
+- `stopping`: the `SequentialRun.summary()`.
+
+### `bias_rmse(estimator, simulate, n, truth, n_rep=5000, ...) -> dict`
+`{"bias", "bias_mcse", "sd", "rmse", "rmse_mcse", "mean_estimate", "truth",
+"n", "n_rep", "n_failed"}`.
+
+### `pseudo_true(estimator, simulate, R=20000, ...) -> dict`
+`{"pseudo_true": float, "R": int}`.
+
 ## Multi-source robustness (`nsevt.transportability`)
 
 ### `multisource_robustness(sources, threshold, reference=None, ...) -> ArenaResult`
