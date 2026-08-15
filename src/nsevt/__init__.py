@@ -17,7 +17,10 @@ environmental extremes:
   how many replicates a power, coverage, p-value or bootstrap actually needs;
 * :mod:`nsevt.calibration` -- finite-sample calibration of any estimator or test
   by Monte Carlo (empirical type-I/power, interval coverage, bias/RMSE, and the
-  pseudo-true target under misspecification), driven by the sequential protocol.
+  pseudo-true target under misspecification), driven by the sequential protocol;
+* :mod:`nsevt.design` -- grouped GPD regression with a covariate-dependent scale,
+  a profile-likelihood interval for any design coefficient, and return levels
+  with their profile-likelihood intervals.
 
 The conformal block aggregation and distribution-valued trend routines are
 experimental and are grouped under :mod:`nsevt.experimental`; they are excluded
@@ -26,6 +29,12 @@ level for backward compatibility.
 """
 from .calibration import bias_rmse, coverage, pseudo_true, rejection_rate
 from .conformal import ConformalBand, block_conformal, split_conformal
+from .design import (
+    fit_grouped_design,
+    profile_ci_coef,
+    profile_ci_return_level,
+    return_level,
+)
 from .gpd import GPDFit, fit_gpd, gpd_pot, profile_ci_xi, upper_endpoint
 from .grouped import (
     GroupedGPDFit,
@@ -52,7 +61,7 @@ from .transportability import ArenaResult, SourceResult, multisource_robustness,
 from .trend import block_bootstrap_trend_ci, min_detectable_effect, trend_permutation, trend_power
 from .twoscale import TwoScaleResult, twoscale_trend, wasserstein_decomposition
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 __all__ = [
     "fit_gpd", "profile_ci_xi", "upper_endpoint", "gpd_pot", "GPDFit",
@@ -64,6 +73,8 @@ __all__ = [
     "permutation_pvalue", "SequentialRun", "Checkpoint", "run_sequential",
     "substream", "block_streams", "multiseed_summary",
     "rejection_rate", "coverage", "bias_rmse", "pseudo_true",
+    "fit_grouped_design", "profile_ci_coef", "return_level",
+    "profile_ci_return_level",
     "multisource_robustness", "transportability", "ArenaResult", "SourceResult",
     "block_conformal", "split_conformal", "ConformalBand",
     "twoscale_trend", "wasserstein_decomposition", "TwoScaleResult",

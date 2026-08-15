@@ -174,6 +174,29 @@ print(cov["coverage"], cov["mcse"], cov["status"])
 The proportion analyses run on the sequential protocol above, so each reports its
 Monte Carlo standard error and whether it stabilised.
 
+## Grouped regression and return levels
+
+`nsevt.design` extends the grouped fit from a single scale to a log-linear scale
+design, and adds return levels. `fit_grouped_design` takes a design matrix (a
+trend column, group indicators, or any combination); `profile_ci_coef` gives a
+profile-likelihood interval for any coefficient — the interval counterpart of the
+permutation trend test. `return_level` and `profile_ci_return_level` give the
+level exceeded once per `m` observations at an exceedance rate, with a profile
+interval obtained by profiling the level itself.
+
+```python
+from nsevt import design
+import numpy as np
+
+X = np.column_stack([np.ones(marks.size), decade])   # intercept + a trend column
+fit = design.fit_grouped_design(marks, threshold=40, design=X, grid=5.0)
+ci = design.profile_ci_coef(marks, 40, X, coef=1, grid=5.0)   # trend interval
+print(fit["coef"][1], ci["ci"])
+
+rl = design.profile_ci_return_level(marks, 40, rate=0.4, m=100, grid=5.0)
+print(rl["return_level"], rl["ci"])
+```
+
 ## Stable and experimental functionality
 
 | status | module | purpose |
@@ -183,6 +206,7 @@ Monte Carlo standard error and whether it stabilised.
 | stable | `nsevt.trend` | LR block-label permutation, power/MDE, descriptive block-bootstrap interval |
 | stable | `nsevt.mc` | sequential Monte Carlo precision: MCSE, stopping rule, traces, reproducible substreams |
 | stable | `nsevt.calibration` | finite-sample type-I/power, coverage, bias/RMSE and pseudo-true target |
+| stable | `nsevt.design` | grouped GPD regression (covariate scale), coefficient profile CI, return levels |
 | stable | `nsevt.transportability` | multi-source robustness and power-aware status |
 | stable with assumptions | `split_conformal` | upper tail bound for exchangeable calibration scores |
 | experimental | `block_conformal` | block-aggregate dependence sensitivity diagnostic |

@@ -85,6 +85,19 @@ forward the `nsevt.mc` sequential parameters (`epsilon`, `r0`, `r_min`, `r_max`,
 `block`, `min_stable_blocks`, `seed`); set them small when the estimator is
 expensive, since each replicate refits the model.
 
+### `nsevt.design` — grouped regression and return levels
+
+`design.fit_grouped_design(values, threshold, design, grid=5.0, cells=None)` fits
+the interval-censored GPD with a log-linear scale `design[i] @ coef` (intercept in
+column 0); `values` are the exceedance marks and `design` the aligned `(n, p)`
+matrix. `design.profile_ci_coef(values, threshold, design, coef, ...)` is a
+profile-likelihood interval for column `coef` (the shape and other coefficients
+maximised out). `design.return_level(xi, sigma, threshold, rate, m)` is the level
+exceeded once per `m` observations at exceedance rate `rate`, and
+`design.profile_ci_return_level(values, threshold, rate, m, ...)` its profile
+interval (bounded tails only; `None` when the point level is not finite and
+positive). The covariate coding and the exceedance rate are caller-supplied.
+
 ## Experimental APIs (`nsevt.experimental`)
 
 `split_conformal`, `block_conformal`, `ConformalBand`, `twoscale_trend`,

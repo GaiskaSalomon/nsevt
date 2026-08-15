@@ -127,6 +127,21 @@ sequential block.
 ### `pseudo_true(estimator, simulate, R=20000, ...) -> dict`
 `{"pseudo_true": float, "R": int}`.
 
+## Grouped regression and return levels (`nsevt.design`)
+
+### `fit_grouped_design(values, threshold, design, grid=5.0, cells=None) -> dict`
+`{"xi", "coef" (list), "sigma0", "loglik", "n", "p", "truncation"}`.
+
+### `profile_ci_coef(values, threshold, design, coef=1, ...) -> dict`
+`{"coef" (int), "estimate", "ci": [lo, hi], "at_bound", "level", "loglik"}`.
+
+### `return_level(xi, sigma, threshold, rate, m) -> ndarray`
+The return level(s) for scalar or array `m`.
+
+### `profile_ci_return_level(values, threshold, rate, m, ...) -> dict | None`
+`{"m", "return_level", "ci": [lo, hi], "upper_at_bound", "xi_at_max", "loglik",
+"level"}`, or `None` when the point return level is not finite and positive.
+
 ## Multi-source robustness (`nsevt.transportability`)
 
 ### `multisource_robustness(sources, threshold, reference=None, ...) -> ArenaResult`

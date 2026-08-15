@@ -2,6 +2,21 @@
 
 All notable changes are recorded here.
 
+## [0.4.1] - 2026-08-14
+
+### Added
+
+- `nsevt.design`: grouped GPD regression and return levels. `fit_grouped_design`
+  fits the interval-censored GPD with a log-linear scale design matrix (a trend,
+  group-specific scales, or any combination); `profile_ci_coef` is a
+  profile-likelihood interval for any coefficient of that design (the interval
+  counterpart of the permutation trend test); `return_level` gives the level
+  exceeded once per `m` observations at an exceedance rate, and
+  `profile_ci_return_level` its profile-likelihood interval, obtained by
+  profiling the level itself rather than pushing a profiled shape through the
+  return-level formula. The design, covariate coding and exceedance rate are
+  caller-supplied; the module is NumPy/SciPy-only.
+
 ## [0.4.0] - 2026-08-14
 
 ### Added
