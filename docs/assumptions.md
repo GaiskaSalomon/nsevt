@@ -71,6 +71,45 @@ an instrumental artifact. The returned status distinguishes reproducibility,
 opposite direction, adequate-power non-reproduction, unresolved evidence, and
 absence of a reference signal.
 
+## Sequential Monte Carlo precision (`nsevt.mc`)
+
+The MCSE formulae assume independent replicates: `mcse_proportion` and the
+sequential stopping rule are valid when `draw` returns independent outcomes, and
+`batch_diagnostic` is provided precisely to detect when that fails (a ratio far
+from 1). The stopping rule controls Monte Carlo (simulation) error, not
+statistical (sampling) error: reaching `R*` means the reported estimate is
+precise for the design and data generating process supplied, not that the
+underlying estimand is correct. `substream`/`block_streams` give reproducible,
+independent streams from one master seed; reproducibility is exact only for the
+same NumPy version and platform-independent `SeedSequence` spawning.
+
+## Finite-sample calibration (`nsevt.calibration`)
+
+`rejection_rate`, `coverage`, `bias_rmse` and `pseudo_true` measure the behaviour
+of the estimator or test **on the data generating process you supply**. They are
+diagnostics of a procedure under a stated model, not evidence about the real
+world: a coverage of 0.95 against a well-specified DGP does not certify coverage
+under the true data, only that the interval is calibrated for that DGP. Under
+misspecification an estimator is consistent for its `pseudo_true` value rather
+than the generating parameter, and coverage should be judged against that honest
+target. Results carry Monte Carlo error (via `nsevt.mc`); read coverage and
+type-I numbers to their MCSE, not beyond it.
+
+## Grouped regression and return levels (`nsevt.design`)
+
+`fit_grouped_design` assumes the log-scale is linear in the supplied design
+matrix with a common shape, and that `values`/`design` are aligned exceedances;
+the covariate coding is the caller's responsibility. `profile_ci_coef` reports a
+profile-likelihood interval for one coefficient and relies on the usual
+chi-square calibration of the likelihood ratio, which — as for the trend test —
+can be optimistic under a realistic null; calibrate it with `nsevt.calibration`
+rather than assuming the asymptotic level. `return_level` and
+`profile_ci_return_level` are conditional on the fitted GPD and the supplied
+exceedance rate; `profile_ci_return_level` is restricted to bounded tails
+(`xi < 0`) and profiles the level itself, so the interval is a model-based
+summary, not a distribution-free bound, and does not propagate uncertainty in the
+threshold or the exceedance rate.
+
 ## Experimental modules
 
 `block_conformal` aggregates ordered scores by blocks. No general finite-sample
