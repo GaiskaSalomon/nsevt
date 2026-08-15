@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nsevt"
-version = "0.4.1"
-description = "Peaks-over-threshold GPD tail inference with continuous and interval-censored (grouped) fits, profile-likelihood intervals for shape and endpoint, permutation trend tests, power/MDE, a sequential Monte Carlo precision protocol, and multi-source robustness."
+version = "1.0.0"
+description = "Peaks-over-threshold GPD tail inference with continuous and interval-censored (grouped) fits, profile-likelihood intervals for shape, endpoint and return levels, grouped scale regression, permutation trend tests, power/MDE, a sequential Monte Carlo precision protocol, finite-sample calibration, and multi-source robustness."
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
@@ -15,7 +15,7 @@ maintainers = [{ name = "Elí Gaiska Salomón-Guzmán", email = "salomon.eli@col
 keywords = ["extreme value theory", "generalized Pareto", "non-stationarity",
             "permutation test", "power analysis", "climate extremes"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",

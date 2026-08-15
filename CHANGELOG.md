@@ -2,6 +2,23 @@
 
 All notable changes are recorded here.
 
+## [1.0.0] - 2026-08-15
+
+**The public API is now stable.** From this release, the documented public
+surface — the `nsevt.gpd`, `nsevt.grouped`, `nsevt.trend`, `nsevt.transportability`,
+`nsevt.mc`, `nsevt.calibration` and `nsevt.design` names, their signatures, and
+their return schemas (`docs/return-schemas.md`) — is frozen: a backward-incompatible
+change to it will require a 2.0.0. Additions (new functions, new optional
+arguments, new return-dict keys) remain minor (1.x) changes.
+
+No code changes relative to 0.4.1; this release marks the stability commitment.
+The routines under `nsevt.experimental` (conformal aggregation, distribution-valued
+trend) remain outside the stability guarantee, as documented.
+
+### Changed
+
+- Development status classifier raised to `5 - Production/Stable`.
+
 ## [0.4.1] - 2026-08-14
 
 ### Added

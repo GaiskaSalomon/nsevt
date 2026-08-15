@@ -199,6 +199,11 @@ print(rl["return_level"], rl["ci"])
 
 ## Stable and experimental functionality
 
+As of 1.0.0 the public API is **stable**: the modules listed as stable below —
+their names, signatures, and documented return schemas — are frozen, and a
+backward-incompatible change to them will require a 2.0.0. Additions remain minor
+(1.x) changes. The `nsevt.experimental` routines are outside this guarantee.
+
 | status | module | purpose |
 |---|---|---|
 | stable | `nsevt.gpd` | GPD fit, profile interval, conditional endpoint bootstrap, return levels |
