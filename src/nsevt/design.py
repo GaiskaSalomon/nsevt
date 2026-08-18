@@ -81,7 +81,13 @@ def _cells_of(values, threshold, grid, cells):
     return interval_cells(values, threshold, grid)
 
 
-def _validated_inputs(values, threshold, design, grid, cells):
+def _validated_inputs(
+    values: npt.ArrayLike,
+    threshold: float,
+    design: npt.ArrayLike,
+    grid: float | npt.ArrayLike,
+    cells: Optional[tuple],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     values = np.asarray(values, dtype=float)
     X = np.asarray(design, dtype=float)
     if not np.isfinite(threshold):

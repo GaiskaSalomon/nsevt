@@ -137,6 +137,85 @@ def test_return_level_profile_interval_brackets_the_level():
     assert set(out) >= {"m", "return_level", "ci", "upper_at_bound", "loglik"}
 
 
+# -- validation coverage of the 1.0.1 hardening ----------------------------
+def test_fit_rejects_bad_starts():
+    with pytest.raises(ValueError, match="starts"):
+        design.fit_grouped_design([45.0, 50.0, 55.0], 40.0, np.ones((3, 1)),
+                                  starts=[])
+
+
+@pytest.mark.parametrize(
+    "cells, message",
+    [
+        ((np.zeros(3), np.ones(3)), "triple"),                    # not length 3
+        ((np.array([np.nan, 0.0, 0.0]), np.ones(3), np.zeros(3)), "finite"),
+        ((np.full(3, 5.0), np.ones(3), np.zeros(3)), "satisfy"),  # b <= a
+        ((np.zeros(3), np.ones(3), np.full(3, 2.0)), "satisfy"),  # trunc > b
+    ],
+)
+def test_cells_deep_validation(cells, message):
+    with pytest.raises(ValueError, match=message):
+        design.fit_grouped_design([45.0, 50.0, 55.0], 40.0, np.ones((3, 1)),
+                                  cells=cells)
+
+
+@pytest.mark.parametrize(
+    "kwargs, message",
+    [
+        ({"coef": 5}, "coef"),
+        ({"level": 1.5}, "level"),
+        ({"n_bisect": 0}, "n_bisect"),
+        ({"span": 0.0}, "span"),
+    ],
+)
+def test_profile_ci_coef_rejects_invalid_controls(kwargs, message):
+    rng = np.random.default_rng(10)
+    marks, X = _grouped_trend(rng, slope=0.0)
+    with pytest.raises(ValueError, match=message):
+        design.profile_ci_coef(marks, 40.0, X, grid=5.0, **kwargs)
+
+
+def test_profile_ci_coef_rejects_malformed_fit():
+    rng = np.random.default_rng(11)
+    marks, X = _grouped_trend(rng, slope=0.0)
+    with pytest.raises(ValueError, match="grouped-design fit"):
+        design.profile_ci_coef(marks, 40.0, X, grid=5.0,
+                               fit={"coef": [np.nan, np.nan], "xi": np.nan,
+                                    "loglik": np.nan})
+
+
+@pytest.mark.parametrize(
+    "kwargs, message",
+    [
+        ({"rate": 0.0}, "rate"),
+        ({"m": 0.0}, "m must be"),
+        ({"level": 0.0}, "level"),
+        ({"span": (0.5, 0.9)}, "span"),           # upper not above 1
+    ],
+)
+def test_profile_ci_return_level_rejects_invalid_controls(kwargs, message):
+    args = {"rate": 0.4, "m": 50.0}
+    args.update(kwargs)
+    with pytest.raises(ValueError, match=message):
+        design.profile_ci_return_level([45.0, 50.0, 55.0], 40.0, grid=5.0, **args)
+
+
+def test_return_level_rejects_nonfinite_shape():
+    with pytest.raises(ValueError, match="finite"):
+        design.return_level(np.nan, 15.0, 40.0, 0.4, 100.0)
+
+
+def test_profile_ci_return_level_none_for_heavy_tail():
+    # a heavy tail (xi > 0) has no finite endpoint, so no return-level profile
+    rng = np.random.default_rng(13)
+    u = rng.uniform(size=3000)
+    z = 8.0 / 0.25 * ((1 - u) ** (-0.25) - 1.0)     # xi = +0.25
+    marks = np.round((40.0 + z) / 5.0) * 5.0
+    marks = marks[marks > 40.0]
+    out = design.profile_ci_return_level(marks, 40.0, rate=0.4, m=50.0, grid=5.0)
+    assert out is None
+
+
 # -- public surface --------------------------------------------------------
 def test_public_reexports():
     for name in ("fit_grouped_design", "profile_ci_coef", "return_level",

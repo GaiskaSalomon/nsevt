@@ -4,6 +4,27 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-08-16
+
+### Fixed
+
+- Type-annotate `design._validated_inputs` so the validated arrays flow back to
+  their callers as `ndarray`; the stable core type-checks cleanly under mypy
+  again (`nsevt.design` had regressed).
+
+### Changed
+
+- The continuous-integration lint job now runs `mypy src/nsevt`, so the
+  type-clean guarantee is enforced rather than checked only by hand.
+
+### Tested
+
+- Cover the input-validation paths added in 1.0.1 for `nsevt.design`
+  (malformed censoring cells, invalid `profile_ci_coef` / `profile_ci_return_level`
+  controls, a non-finite shape in `return_level`, and the heavy-tail case where
+  `profile_ci_return_level` returns `None`), confirming the hardening triggers as
+  intended. No runtime or API change.
+
 ## [1.0.1] - 2026-08-15
 
 ### Fixed

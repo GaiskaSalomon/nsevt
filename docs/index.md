@@ -1,7 +1,7 @@
 # nsevt documentation
 
 This documentation complements the API docstrings and records the statistical
-contract of version 1.0.1.
+contract of version 1.0.2.
 
 - [Assumptions and claim boundaries](assumptions.md)
 - [API guide](api.md)
