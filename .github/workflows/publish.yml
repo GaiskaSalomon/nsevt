@@ -50,3 +50,9 @@ jobs:
           name: python-package-distributions
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Trusted Publishing (OIDC): configure a publisher on PyPI for
+          # GaiskaSalomon/nsevt, workflow publish.yml, environment pypi.
+          # skip-existing tolerates a version already uploaded manually so a
+          # re-run does not hard-fail on "file already exists".
+          skip-existing: true
