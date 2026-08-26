@@ -10,8 +10,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![DOI](https://zenodo.org/badge/1328485209.svg)](https://zenodo.org/badge/latestdoi/1328485209)
 
-The current release is **nsevt 1.0.2**. Install the exact version with
-`pip install nsevt==1.0.2`. Every release is archived at
+The current release is **nsevt 1.0.3**. Install the exact version with
+`pip install nsevt==1.0.3`. Every release is archived at
 [Zenodo (concept DOI 10.5281/zenodo.21858232)](https://doi.org/10.5281/zenodo.21858232),
 which always resolves to the latest version.
 
@@ -242,14 +242,31 @@ with:
 
 ```bash
 pip install -e ".[dev]"
-ruff check src tests demo
+python tools/release_check.py
+ruff check src tests demo tools
+mypy src/nsevt
 pytest --cov=nsevt --cov-report=term-missing --cov-fail-under=80
 python -m build
 python -m twine check dist/*
+python tools/write_checksums.py dist
+python tools/check_distributions.py dist
 ```
 
 See [`docs/validation.md`](docs/validation.md) for what each test establishes
 and, equally importantly, what it does not establish.
+
+## Releases and archived evidence
+
+Stable releases use matching `X.Y.Z` identifiers in the installed package,
+Git tag, GitHub release, PyPI distribution, `CITATION.cff`, and Zenodo metadata.
+The concept DOI above identifies the software across releases; Zenodo also
+assigns an immutable DOI to each exact version. Release candidates are exercised
+on TestPyPI and are not presented as stable archived versions.
+
+Release artifacts are built once, smoke-tested as both a wheel and source
+distribution, hashed, attached to a draft GitHub release, and then published
+unchanged to PyPI when that draft is released. See [`RELEASING.md`](RELEASING.md)
+for the maintained checklist and trust boundaries.
 
 ## Citation and license
 

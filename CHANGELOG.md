@@ -4,6 +4,30 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-08-26
+
+### Changed
+
+- Make `src/nsevt/_version.py` the package version source and verify that the
+  README, changelog, citation metadata, Zenodo metadata, Git tag, and built
+  distributions agree with it before a release can be published.
+- Prepare every tagged release as a draft containing the tested wheel, source
+  distribution, and SHA-256 manifest; publish those exact artifacts to PyPI
+  through Trusted Publishing after the draft is released.
+- Add a separate manual TestPyPI workflow and a maintained release checklist.
+
+### Fixed
+
+- Remove `skip-existing` from the PyPI upload. A repeated version now fails
+  visibly instead of silently accepting files whose identity was not checked.
+
+### Documentation
+
+- Document the distinction between the all-versions Zenodo concept DOI and the
+  immutable DOI assigned to each software version.
+
+There is no change to statistical calculations or the stable public API.
+
 ## [1.0.2] - 2026-08-16
 
 ### Fixed

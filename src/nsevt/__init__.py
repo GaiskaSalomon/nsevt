@@ -27,6 +27,7 @@ experimental and are grouped under :mod:`nsevt.experimental`; they are excluded
 from the public-API stability guarantee. They remain importable from the top
 level for backward compatibility.
 """
+from ._version import __version__
 from .calibration import bias_rmse, coverage, pseudo_true, rejection_rate
 from .conformal import ConformalBand, block_conformal, split_conformal
 from .design import (
@@ -60,8 +61,6 @@ from .mc import (
 from .transportability import ArenaResult, SourceResult, multisource_robustness, transportability
 from .trend import block_bootstrap_trend_ci, min_detectable_effect, trend_permutation, trend_power
 from .twoscale import TwoScaleResult, twoscale_trend, wasserstein_decomposition
-
-__version__ = "1.0.2"
 
 __all__ = [
     "fit_gpd", "profile_ci_xi", "upper_endpoint", "gpd_pot", "GPDFit",

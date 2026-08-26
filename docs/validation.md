@@ -25,15 +25,21 @@ block dependence, missingness, thresholds, and measurement error.
 
 Release validation consists of:
 
-    ruff check src tests demo
+    python tools/release_check.py
+    ruff check src tests demo tools
+    mypy src/nsevt
     pytest --cov=nsevt --cov-report=term-missing --cov-fail-under=80
     python -m build
     python -m twine check dist/*
+    python tools/write_checksums.py dist
+    python tools/check_distributions.py dist
 
 Continuous integration repeats lint, tests, package build, and a clean wheel
 and source-distribution installation smoke test. The installed-distribution
 smoke test exercises the continuous and grouped fits, block permutation,
 grouped design and return levels, sequential Monte Carlo, finite-sample
 calibration, multi-source status, and experimental namespace using public entry
-points only. The publication workflow runs the same test on both artifacts
-before the PyPI job can start.
+points only. A tagged candidate is attached to a draft GitHub release only after
+all quality gates pass. The publication workflow then downloads those exact
+artifacts, verifies their SHA-256 manifest and embedded versions, and repeats
+both smoke installations before the PyPI job can start.

@@ -1,10 +1,9 @@
-name: CI
+name: Prepare GitHub release
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    tags:
+      - "v*.*.*"
 
 permissions:
   contents: read
@@ -19,7 +18,7 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip
       - run: pip install -e ".[dev]"
-      - run: python tools/release_check.py
+      - run: python tools/release_check.py --tag "${GITHUB_REF_NAME}"
       - run: ruff check src tests demo tools
       - run: mypy src/nsevt
 
@@ -40,22 +39,37 @@ jobs:
       - run: pytest -q --cov=nsevt --cov-report=term --cov-fail-under=80
 
   build:
+    needs: [lint, test]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install --upgrade pip build twine
+      - run: python -m pip install --upgrade build twine
+      - run: python tools/release_check.py --tag "${GITHUB_REF_NAME}"
       - run: python -m build
       - run: python -m twine check dist/*
+      - run: python tools/write_checksums.py dist
+      - run: python tools/check_distributions.py dist
       - name: Smoke-install wheel
         run: |
-          python -m venv /tmp/nsevt-wheel
-          /tmp/nsevt-wheel/bin/pip install dist/*.whl
-          /tmp/nsevt-wheel/bin/python tests/smoke_release.py
+          python -m venv /tmp/nsevt-release
+          /tmp/nsevt-release/bin/pip install dist/*.whl
+          /tmp/nsevt-release/bin/python tests/smoke_release.py
       - name: Smoke-install source distribution
         run: |
-          python -m venv /tmp/nsevt-sdist
-          /tmp/nsevt-sdist/bin/pip install dist/*.tar.gz
-          /tmp/nsevt-sdist/bin/python tests/smoke_release.py
+          python -m venv /tmp/nsevt-release-sdist
+          /tmp/nsevt-release-sdist/bin/pip install dist/*.tar.gz
+          /tmp/nsevt-release-sdist/bin/python tests/smoke_release.py
+      - name: Create the reviewable draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${GITHUB_REF_NAME}" dist/*
+          --draft --verify-tag --target "${GITHUB_SHA}"
+          --title "nsevt ${GITHUB_REF_NAME#v}" --generate-notes
