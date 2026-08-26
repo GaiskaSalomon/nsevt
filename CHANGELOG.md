@@ -16,6 +16,9 @@ All notable changes are recorded here.
 - Record the immutable Zenodo DOI assigned to version 1.0.3.
 - Serve the monthly-download badge directly from PePy to avoid intermittent
   upstream rate-limit responses from the previous badge proxy.
+- Clarify the single-maintainer authorship policy: external reports and
+  proposals remain welcome, while accepted bot or external changes are
+  independently reproduced in maintainer-authored commits.
 
 ## [1.0.3] - 2026-08-26
 
