@@ -9,6 +9,10 @@ All notable changes are recorded here.
 - Update artifact transfer actions to audited Node.js 24 revisions, removing
   the deprecation annotations observed while publishing version 1.0.3.
 
+### Documentation
+
+- Record the immutable Zenodo DOI assigned to version 1.0.3.
+
 ## [1.0.3] - 2026-08-26
 
 ### Changed
