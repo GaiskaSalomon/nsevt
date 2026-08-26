@@ -15,6 +15,8 @@ All notable changes are recorded here.
   distribution, and SHA-256 manifest; publish those exact artifacts to PyPI
   through Trusted Publishing after the draft is released.
 - Add a separate manual TestPyPI workflow and a maintained release checklist.
+- Pin release-critical GitHub Actions to audited Node.js 24 revisions so CI no
+  longer relies on deprecated Node.js 20 action runtimes.
 
 ### Fixed
 

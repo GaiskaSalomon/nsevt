@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION_FILE = ROOT / "src" / "nsevt" / "_version.py"
 VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:rc[0-9]+)?$")
 CONCEPT_DOI = "10.5281/zenodo.21858232"
+ACTION_REF_PATTERN = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
 
 
 def source_version() -> str:
@@ -89,6 +90,17 @@ def check_release(tag: str | None = None) -> list[str]:
     require(f"current release is **nsevt {version}**" in readme, "README.md current-release text is stale")
     require(f"pip install nsevt=={version}" in readme, "README.md exact-install command is stale")
     require(CONCEPT_DOI in readme, "README.md must expose the Zenodo concept DOI")
+
+    for workflow in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        workflow_text = workflow.read_text(encoding="utf-8")
+        actions = re.findall(r"^\s*-?\s*uses:\s*([^\s#]+)", workflow_text, re.MULTILINE)
+        for action in actions:
+            if action.startswith("./"):
+                continue
+            require(
+                bool(ACTION_REF_PATTERN.fullmatch(action)),
+                f"{workflow.relative_to(ROOT)} uses an unpinned action: {action}",
+            )
 
     if tag is not None:
         require(tag == f"v{version}", f"release tag is {tag!r}, expected 'v{version}'")

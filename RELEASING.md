@@ -14,6 +14,10 @@ version, never by replacing an existing distribution.
    environment `testpypi`.
 4. Require approval for the `pypi` environment. TestPyPI may remain unprotected.
 
+Workflow actions are pinned to full commit hashes. Dependabot checks them
+monthly; review the upstream release and keep the human-readable version comment
+beside each updated hash.
+
 No long-lived PyPI token belongs in GitHub secrets or a developer workstation.
 
 ## Prepare a version
