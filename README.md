@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/GaiskaSalomon/nsevt/actions/workflows/ci.yml/badge.svg)](https://github.com/GaiskaSalomon/nsevt/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/nsevt.svg)](https://pypi.org/project/nsevt/)
-[![Downloads/month](https://img.shields.io/pypi/dm/nsevt?logo=pypi)](https://pypi.org/project/nsevt/)
+[![Downloads/month](https://api.pepy.tech/badge/nsevt/month)](https://pepy.tech/projects/nsevt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![DOI](https://zenodo.org/badge/1328485209.svg)](https://zenodo.org/badge/latestdoi/1328485209)
 
