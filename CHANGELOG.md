@@ -16,6 +16,17 @@ All notable changes are recorded here.
 
 ### Fixed
 
+- Make `nsevt.calibration` decisions and failure handling consistent.
+  `rejection_rate` now uses one threshold (`alpha + anticonservative_margin`,
+  returned as `anticonservative_threshold`) for both the stopping rule and the
+  reported `anticonservative` verdict, instead of stopping on the margin and
+  reporting on `alpha + 2*MCSE`. `coverage` treats an interval with an infinite
+  limit that brackets the target as covering (with `n_infinite`) and a `NaN`
+  limit, `lo > hi`, or a raising `estimator` as a failed replicate
+  (`n_failed`, `n_effective`), not as non-coverage; `bias_rmse` and
+  `pseudo_true` likewise treat a raising estimator as a failure rather than
+  aborting the campaign. All four validate `n`, and `coverage` also validates
+  `level` and a finite `target`, before simulating.
 - Compute the grouped (interval-censored) cell probabilities in log space. The
   cell was formed as `S(a) - S(b)` in ordinary scale and cancelled to zero — so
   the fit reported the penalty value — when the two survivals were close: a wide

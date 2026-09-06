@@ -66,6 +66,31 @@ def test_rejection_rate_treats_invalid_pvalues_as_failures():
     assert out["n_failed"] > 0 and out["status"] == nsevt.mc.NOT_STABILISED
 
 
+def test_rejection_rate_stop_and_report_use_one_threshold():
+    # the reported `anticonservative` verdict and the verdict the run stops on
+    # are the same function of the estimate (alpha + margin), not one on a
+    # fixed margin and the other on 2*MCSE
+    def biased(sample):            # rejects ~55% at alpha=0.2
+        return float(sample[0]) ** 3
+
+    out = cal.rejection_rate(biased, lambda r, n: r.uniform(size=n), n=1,
+                             alpha=0.2, anticonservative_margin=0.01,
+                             epsilon=0.01, r0=2000, r_min=2000, block=1000,
+                             r_max=8000, min_stable_blocks=1, seed=11)
+    assert out["anticonservative_threshold"] == pytest.approx(0.21)
+    assert out["anticonservative"] == (out["rate"] > out["anticonservative_threshold"])
+
+
+@pytest.mark.parametrize("kwargs", [{"n": 0}, {"n": 2.5},
+                                    {"anticonservative_margin": -0.1},
+                                    {"anticonservative_margin": 0.99, "alpha": 0.5}])
+def test_rejection_rate_rejects_invalid_controls(kwargs):
+    args = dict(test=lambda s: 0.5, simulate=lambda r, n: r.uniform(size=n), n=1)
+    args.update(kwargs)
+    with pytest.raises(ValueError):
+        cal.rejection_rate(**args)
+
+
 # -- coverage --------------------------------------------------------------
 def test_profile_interval_covers_xi_when_well_specified():
     xi_true = -0.2
@@ -103,6 +128,38 @@ def test_coverage_accepts_a_callable_target():
     assert out["target"] == pytest.approx(-0.2)
 
 
+def test_coverage_open_bound_covers_and_nan_is_a_failure():
+    ctrl = dict(epsilon=0.05, r0=40, r_min=40, block=20, r_max=80,
+                min_stable_blocks=1, seed=7)
+    # an interval with an infinite limit that still brackets the target counts
+    # as covering (it is valid, just uninformative) and is tallied in n_infinite
+    out = cal.coverage(lambda s: (-np.inf, 10.0), lambda r, n: r.normal(size=n),
+                       n=5, target=0.0, **ctrl)
+    assert out["coverage"] == pytest.approx(1.0)
+    assert out["n_infinite"] == out["R"] and out["n_failed"] == 0
+    # a NaN limit is an estimator failure, not non-coverage
+    out = cal.coverage(lambda s: (np.nan, np.nan), lambda r, n: r.normal(size=n),
+                       n=5, target=0.0, **ctrl)
+    assert out["n_failed"] == out["R"] and out["n_effective"] == 0
+    assert not np.isfinite(out["coverage"])
+    # an estimator that raises is also a failed replicate
+    def boom(s):
+        raise RuntimeError("no interval")
+
+    out = cal.coverage(boom, lambda r, n: r.normal(size=n), n=5, target=0.0, **ctrl)
+    assert out["n_failed"] == out["R"]
+
+
+@pytest.mark.parametrize("kwargs", [{"n": 0}, {"level": 0.0}, {"level": 1.0},
+                                    {"target": np.inf}])
+def test_coverage_rejects_invalid_controls(kwargs):
+    args = dict(estimator=lambda s: (0.0, 1.0),
+                simulate=lambda r, n: r.normal(size=n), n=5, target=0.5)
+    args.update(kwargs)
+    with pytest.raises(ValueError):
+        cal.coverage(**args)
+
+
 # -- bias_rmse -------------------------------------------------------------
 def test_bias_of_the_mle_shape_is_small_when_well_specified():
     xi_true = -0.2
@@ -122,6 +179,23 @@ def test_bias_rmse_rejects_tiny_budget():
     with pytest.raises(ValueError):
         cal.bias_rmse(lambda s: 0.0, lambda r, n: _gpd_sample(r, n), n=100,
                       truth=0.0, n_rep=1)
+
+
+def test_bias_rmse_survives_a_failing_estimator():
+    rng_state = {"i": 0}
+
+    def flaky(sample):
+        rng_state["i"] += 1
+        if rng_state["i"] % 3 == 0:
+            raise RuntimeError("fit failed")
+        return 0.1
+
+    out = cal.bias_rmse(flaky, lambda r, n: _gpd_sample(r, n), n=50,
+                        truth=0.1, n_rep=60, seed=6)
+    assert out["n_failed"] > 0 and out["n_failed"] + 2 <= out["n_rep"]
+    with pytest.raises(ValueError):
+        cal.bias_rmse(lambda s: 0.0, lambda r, n: _gpd_sample(r, n), n=0,
+                      truth=0.0, n_rep=10)
 
 
 # -- pseudo_true -----------------------------------------------------------
@@ -152,6 +226,12 @@ def test_pseudo_true_rejects_invalid_budget_and_nonfinite_estimate():
         cal.pseudo_true(lambda s: 0.0, lambda r, n: np.zeros(n), R=2)
     with pytest.raises(RuntimeError, match="non-finite"):
         cal.pseudo_true(lambda s: np.nan, lambda r, n: np.zeros(n), R=10)
+
+    def boom(s):
+        raise ValueError("cannot fit")
+
+    with pytest.raises(RuntimeError, match="failed on the pseudo-true sample"):
+        cal.pseudo_true(boom, lambda r, n: np.zeros(n), R=10)
 
 
 # -- public surface --------------------------------------------------------

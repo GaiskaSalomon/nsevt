@@ -108,6 +108,17 @@ limit, and sensitivity to `R` and seed should be checked before coverage is
 judged against it. Results carry Monte Carlo error (via `nsevt.mc`); read coverage and
 type-I numbers to their MCSE, not beyond it.
 
+A replicate whose test or estimator raises, or returns a non-finite p-value,
+interval limit or point estimate, is a **failed replicate**: it is dropped and
+counted (`n_failed`), not folded in as a non-rejection or non-coverage, and it
+does not abort the campaign. `coverage` treats an interval with an infinite
+limit that still brackets the target as covering (a valid but uninformative
+interval) and reports how many such replicates there were in `n_infinite`.
+`rejection_rate` uses one threshold, `alpha + anticonservative_margin`, for both
+the stopping rule and the reported `anticonservative` verdict. Invalid controls
+(`n <= 0`, `level` outside `(0, 1)`, a non-finite `target`, a margin that pushes
+`alpha + margin` outside `[0, 1)`) are rejected before any simulation is drawn.
+
 ## Grouped regression and return levels (`nsevt.design`)
 
 `fit_grouped_design` assumes the log-scale is linear in the supplied design

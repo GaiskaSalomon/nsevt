@@ -52,6 +52,13 @@ def _block_draw(seed: int, tag: str, per_replicate: Callable[[np.random.Generato
     return draw
 
 
+def _check_n(n: int) -> int:
+    """Validate a sample size before any simulation is drawn."""
+    if not isinstance(n, (int, np.integer)) or n < 1:
+        raise ValueError("n must be a positive integer")
+    return int(n)
+
+
 def rejection_rate(
     test: Callable[[Sample], float],
     simulate: Simulate,
@@ -68,10 +75,11 @@ def rejection_rate(
 
     ``test(sample)`` must return a p-value; the test rejects when ``p < alpha``.
     Run under a null DGP this is the empirical type-I error (compare it with
-    ``alpha``); run under an alternative it is power.  A decision rule flags the
-    run as ``anticonservative`` while the estimated rate sits more than
-    ``anticonservative_margin`` above ``alpha``, so the run cannot stop until
-    that verdict has settled.
+    ``alpha``); run under an alternative it is power.  The run is flagged
+    ``anticonservative`` while the estimated rate sits more than
+    ``anticonservative_margin`` above ``alpha``; the **same** threshold drives
+    the stopping rule, so the reported verdict and the verdict the run waited to
+    settle are one decision.
 
     A replicate whose ``test`` raises, or returns a non-finite value or one
     outside ``[0, 1]``, is a failed replicate: it is excluded from the rate
@@ -79,13 +87,19 @@ def rejection_rate(
     ``n_failed``.  ``n_effective`` is the count the rate and its MCSE rest on;
     a run with too few effective replicates finishes ``not_stabilised``.
     """
+    _check_n(n)
     if not 0 < alpha < 1:
         raise ValueError("alpha must lie strictly between 0 and 1")
+    if not (np.isfinite(anticonservative_margin) and 0 <= anticonservative_margin
+            and alpha + anticonservative_margin < 1):
+        raise ValueError("anticonservative_margin must keep alpha + margin in [0, 1)")
+
+    threshold = alpha + anticonservative_margin
 
     def per_replicate(rng: np.random.Generator) -> float:
         try:
             p = float(test(simulate(rng, n)))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, RuntimeError):
             return float("nan")
         if not np.isfinite(p) or not 0.0 <= p <= 1.0:
             return float("nan")           # invalid p-value: a failed replicate
@@ -94,21 +108,20 @@ def rejection_rate(
     run = mc.run_sequential(
         tag, _block_draw(seed, tag, per_replicate), kind="proportion",
         epsilon=epsilon,
-        decision_rules={"anticonservative":
-                        lambda v: v > alpha + anticonservative_margin},
+        decision_rules={"anticonservative": lambda v: v > threshold},
         seed_label=f"{tag}/{seed}", **seq_kwargs)
     est, se = run._estimate()
     return {
         "rate": est,
         "mcse": se,
         "alpha": alpha,
+        "anticonservative_threshold": threshold,
         "n": int(n),
         "R": run.R,
         "n_effective": run.n_effective,
         "n_failed": run.n_failed,
         "status": run.status,
-        "anticonservative": bool(np.isfinite(est) and np.isfinite(se)
-                                 and est > alpha + 2 * se),
+        "anticonservative": bool(np.isfinite(est) and est > threshold),
         "stopping": run.summary(),
     }
 
@@ -130,16 +143,35 @@ def coverage(
     ``estimator(sample)`` must return an interval ``(lo, hi)``.  ``target`` is
     the value coverage is judged against: the generating parameter when the DGP
     is well specified, or the :func:`pseudo_true` value when it is not (pass a
-    float, or a zero-argument callable evaluated once).  A non-finite limit
-    counts as non-coverage.  The gap between ``level`` and the reported coverage
-    is the interval's finite-sample miscalibration.
+    float, or a zero-argument callable evaluated once).
+
+    An interval with an infinite limit that still brackets ``target`` counts as
+    covering: it is a valid, if uninformative, interval, and ``n_infinite``
+    reports how many replicates were like that so the coverage is not read as a
+    tightness claim.  A limit that is ``NaN`` or an ``estimator`` that raises is
+    a failed replicate (excluded, counted in ``n_failed``), not non-coverage.
+    The gap between ``level`` and the reported coverage is the interval's
+    finite-sample miscalibration.
     """
+    _check_n(n)
+    if not 0 < level < 1:
+        raise ValueError("level must lie strictly between 0 and 1")
     tgt = float(target() if callable(target) else target)
+    if not np.isfinite(tgt):
+        raise ValueError("target must be finite")
+    seen = {"infinite": 0}
 
     def per_replicate(rng: np.random.Generator) -> float:
-        lo, hi = estimator(simulate(rng, n))
-        lo, hi = float(lo), float(hi)
-        return float(np.isfinite(lo) and np.isfinite(hi) and lo <= tgt <= hi)
+        try:
+            lo, hi = estimator(simulate(rng, n))
+            lo, hi = float(lo), float(hi)
+        except (TypeError, ValueError, RuntimeError):
+            return float("nan")
+        if np.isnan(lo) or np.isnan(hi) or lo > hi:
+            return float("nan")           # estimator failure, not non-coverage
+        if not (np.isfinite(lo) and np.isfinite(hi)):
+            seen["infinite"] += 1
+        return float(lo <= tgt <= hi)     # -inf <= tgt and tgt <= inf hold
 
     run = mc.run_sequential(
         tag, _block_draw(seed, tag, per_replicate), kind="proportion",
@@ -154,6 +186,9 @@ def coverage(
         "target": tgt,
         "n": int(n),
         "R": run.R,
+        "n_effective": run.n_effective,
+        "n_failed": run.n_failed,
+        "n_infinite": int(seen["infinite"]),
         "status": run.status,
         "miscalibration": est - level,
         "stopping": run.summary(),
@@ -179,11 +214,20 @@ def bias_rmse(
     Monte Carlo errors (``bias_mcse``, ``rmse_mcse``) say whether ``n_rep`` was
     enough.
     """
+    _check_n(n)
     if not isinstance(n_rep, (int, np.integer)) or n_rep < 2:
         raise ValueError("n_rep must be an integer >= 2")
+    if not np.isfinite(truth):
+        raise ValueError("truth must be finite")
     rng = mc.substream(seed, tag)
-    est = np.array([estimator(simulate(rng, n)) for _ in range(int(n_rep))],
-                   dtype=float)
+
+    def one() -> float:
+        try:
+            return float(estimator(simulate(rng, n)))
+        except (TypeError, ValueError, RuntimeError):
+            return float("nan")
+
+    est = np.array([one() for _ in range(int(n_rep))], dtype=float)
     finite = est[np.isfinite(est)]
     R = finite.size
     if R < 2:
@@ -232,7 +276,10 @@ def pseudo_true(
         raise ValueError("R must be an integer >= 3")
     rng = mc.substream(seed, tag)
     sample = simulate(rng, int(R))
-    value = float(estimator(sample))
+    try:
+        value = float(estimator(sample))
+    except (TypeError, ValueError, RuntimeError) as exc:
+        raise RuntimeError("estimator failed on the pseudo-true sample") from exc
     if not np.isfinite(value):
         raise RuntimeError("estimator returned a non-finite pseudo-true proxy")
     return {"pseudo_true": value, "R": int(R)}

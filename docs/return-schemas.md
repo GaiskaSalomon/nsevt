@@ -144,19 +144,29 @@ sequential block.
 
 ### `rejection_rate(test, simulate, n, alpha=0.05, ...) -> dict`
 - `rate`, `mcse`, `alpha`, `n`, `R`, `status`.
+- `anticonservative_threshold`: `alpha + anticonservative_margin`; the run stops
+  on this decision and reports it, so the two agree.
 - `n_effective`, `n_failed`: replicates the rate rests on, and replicates whose
   `test` raised or returned a value that was non-finite or outside `[0, 1]`.
-- `anticonservative`: bool (`rate` more than two MCSE above `alpha`).
+- `anticonservative`: bool (`rate > anticonservative_threshold`).
 - `stopping`: the `SequentialRun.summary()`.
 
 ### `coverage(estimator, simulate, n, target, level=0.95, ...) -> dict`
 - `coverage`, `mcse`, `nominal`, `target`, `n`, `R`, `status`.
+- `n_effective`, `n_failed`: replicates the coverage rests on, and replicates
+  where a limit was `NaN`, `lo > hi`, or `estimator` raised (failures, not
+  non-coverage).
+- `n_infinite`: replicates whose interval had an infinite limit but still
+  bracketed `target` (counted as covering, but uninformative).
 - `miscalibration`: `coverage - nominal`.
 - `stopping`: the `SequentialRun.summary()`.
+- Rejects a non-positive `n`, `level` outside `(0, 1)`, or a non-finite `target`
+  before simulating.
 
 ### `bias_rmse(estimator, simulate, n, truth, n_rep=5000, ...) -> dict`
 `{"bias", "bias_mcse", "sd", "rmse", "rmse_mcse", "mean_estimate", "truth",
-"n", "n_rep", "n_failed"}`.
+"n", "n_rep", "n_failed"}`. An `estimator` that raises or returns a non-finite
+value is a failed replicate (`n_failed`), not a campaign abort.
 
 ### `pseudo_true(estimator, simulate, R=20000, ...) -> dict`
 `{"pseudo_true": float, "R": int}`.
