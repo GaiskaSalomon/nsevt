@@ -4,6 +4,10 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+### Documentation
+
+- Record the immutable Zenodo DOI assigned to version 1.2.1.
+
 ## [1.2.1] - 2026-09-06
 
 ### Changed
