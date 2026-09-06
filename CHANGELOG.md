@@ -4,6 +4,8 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-06
+
 ### Changed
 
 - Fix the declared build-backend floor: PEP 639 (`license` SPDX string,
