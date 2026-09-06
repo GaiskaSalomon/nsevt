@@ -234,6 +234,9 @@ The exact assumptions and claim boundaries are documented in
 [`docs/assumptions.md`](docs/assumptions.md). The experimental routines are
 collected under `nsevt.experimental` (still importable from the top level for
 backward compatibility) and are outside the public-API stability guarantee.
+[`docs/stability.md`](docs/stability.md) is the authoritative per-symbol list
+and the semantic-versioning rule; it supersedes any other stability statement,
+including the manuscript, when they disagree.
 
 ## Reproducibility and tests
 

@@ -1,0 +1,24 @@
+# Pinned development and CI tooling for a reproducible quality gate.
+#
+# Use it whenever you run the gate that `main` is held to:
+#
+#     pip install -e ".[dev,demo]" -c constraints/ci.txt
+#
+# It pins the tools whose output is compared against a threshold (a lint rule
+# set, a type-checker verdict, a coverage number), so a developer machine and
+# CI reach the same result. It deliberately does NOT pin NumPy or SciPy: the
+# library supports a range (see `pyproject.toml`) and every supported Python
+# resolves its own compatible build. An exact runtime pin for a scientific
+# simulation campaign belongs in a separate `constraints/science.txt` deposited
+# with that campaign's data, not here.
+#
+# This is not a full transitive lock; regenerate the pins below from the
+# versions a clean `pip install -e ".[dev]"` resolves when bumping the gate.
+
+ruff==0.16.6
+mypy==2.3.1
+pytest==9.1.1
+pytest-cov==7.1.0
+coverage==7.16.0
+build==1.4.3
+twine==7.0.0

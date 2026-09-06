@@ -4,8 +4,22 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+### Changed
+
+- Pin the development and CI tooling (Ruff, mypy, pytest, pytest-cov, coverage,
+  build, twine) in `constraints/ci.txt` and apply it in every workflow and in
+  the documented local gate, so a developer machine and CI reach the same lint,
+  type and coverage verdicts. NumPy and SciPy are left to each interpreter's
+  resolver; an exact runtime pin for a simulation campaign is reserved for a
+  separate `constraints/science.txt`.
+
 ### Documentation
 
+- Add `docs/stability.md` as the single authoritative list of which symbols the
+  semantic-versioning guarantee covers, the stable-core vs `nsevt.experimental`
+  split, and the minor/major rule. It supersedes any other stability statement,
+  including the manuscript, when they disagree. `docs/index.md` and
+  `docs/api.md` now point to it and no longer cite a stale contract version.
 - Record the immutable Zenodo DOI assigned to version 1.1.0.
 
 ## [1.1.0] - 2026-09-06

@@ -121,6 +121,7 @@ the top level for backward compatibility, but are excluded from the public-API
 stability guarantee and may change without a major version bump.
 
 All randomized public functions accept an explicit seed. See function
-docstrings for argument-level validation and returned fields, and
+docstrings for argument-level validation and returned fields,
 [`return-schemas.md`](return-schemas.md) for the full return contract of the
-stable core (the surface that the 1.0 stability guarantee will cover).
+stable core, and [`stability.md`](stability.md) for the authoritative list of
+which symbols the semantic-versioning guarantee covers.

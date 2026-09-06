@@ -32,7 +32,8 @@ is reserved for changes to the stable public API or documented return schemas.
    `CHANGELOG.md`. Use the intended UTC publication date.
 4. Update `version` and `date-released` in `CITATION.cff`, `version` in
    `.zenodo.json`, and the current-version text in `README.md`.
-5. Run the local release gate:
+5. Run the local release gate in an environment built with the CI tooling pin
+   (`pip install -e ".[dev,demo]" -c constraints/ci.txt`):
 
    ```bash
    python tools/release_check.py

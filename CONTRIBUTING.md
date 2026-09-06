@@ -27,10 +27,14 @@ request is closed without merging its commits.
 
 ```bash
 python -m venv .venv && . .venv/bin/activate
-pip install -e ".[dev,demo]"
+pip install -e ".[dev,demo]" -c constraints/ci.txt
 ruff check src tests demo
 pytest --cov=nsevt
 ```
+
+`constraints/ci.txt` pins the tooling (Ruff, mypy, pytest, coverage, build,
+twine) to the versions CI uses, so a local gate matches `main`. See
+[`constraints/README.md`](constraints/README.md).
 
 ## Change requirements
 
