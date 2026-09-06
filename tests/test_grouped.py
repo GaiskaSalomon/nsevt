@@ -127,3 +127,47 @@ def test_fit_gpd_grouped_reports_penalty_optimum_as_failure(monkeypatch):
                         lambda *args, **kwargs: grouped._PENALTY)
     with pytest.raises(RuntimeError):
         nsevt.fit_gpd_grouped([45.0, 50.0, 55.0], 40.0)
+
+
+# -- H03: profile intervals consistent with the fit, open bounds exposed -------
+def test_profile_ci_xi_grouped_contains_the_estimate():
+    # a fixed [-0.95, 0.60] bracket used to exclude xi_hat for small samples
+    out = nsevt.profile_ci_xi_grouped([45.0, 50.0, 55.0], 40.0)
+    lo, hi = out["ci"]
+    assert lo <= out["xi_hat"] <= hi
+    assert "lo_at_bound" in out and "hi_at_bound" in out
+
+
+def test_profile_ci_xi_grouped_rejects_bad_level():
+    with pytest.raises(ValueError):
+        nsevt.profile_ci_xi_grouped([45.0, 50.0, 55.0], 40.0, level=1.0)
+
+
+def test_profile_endpoint_ci_reports_unbounded_tail_as_infinite():
+    # heavy tail (xi > 0): the endpoint is not finite, and the upper limit must
+    # be inf with a flag, not a number that is only the search boundary
+    rng = np.random.default_rng(13)
+    u = rng.uniform(size=300)
+    z = 8.0 / 0.25 * ((1.0 - u) ** (-0.25) - 1.0)
+    marks = np.round((40.0 + z) / 5.0) * 5.0
+    marks = marks[marks > 40.0]
+    ep = nsevt.profile_endpoint_ci(marks, 40.0)
+    assert not np.isfinite(ep["endpoint"])
+    assert not np.isfinite(ep["ci"][1])
+    assert ep["upper_at_bound"] is True
+    assert np.isfinite(ep["ci"][0])          # data still bound it from below
+
+
+def test_gpd_pot_grouped_honours_requested_level():
+    rng = np.random.default_rng(0)
+    marks = _discretised_bounded(rng, n=6000)
+    fit80 = nsevt.gpd_pot_grouped(marks, 40.0, grid=5.0, level=0.80)
+    fit95 = nsevt.gpd_pot_grouped(marks, 40.0, grid=5.0, level=0.95)
+    assert fit80.level == 0.80
+    assert "80%" in fit80.summary()
+    # historical aliases still resolve
+    assert fit80.xi_ci95 == fit80.xi_ci
+    assert fit80.endpoint_ci95 == fit80.endpoint_ci
+    # a lower level gives a narrower shape interval
+    assert (fit80.xi_ci[1] - fit80.xi_ci[0]) < (fit95.xi_ci[1] - fit95.xi_ci[0])
+    assert fit80.xi_ci_at_bound == (False, False)

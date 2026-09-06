@@ -114,6 +114,11 @@ def _validate_cells(cells: tuple, n: int) -> tuple:
 def _grouped_nll(par, a, b, trunc):
     """Stationary grouped negative log-likelihood in ``(xi, log sigma)``."""
     xi = par[0]
+    # keep the search in the GPD existence region xi > -1, matching the
+    # continuous kernel; below it the interval-censored MLE is not regular and
+    # the profile interval would not refer to the same estimator
+    if not np.isfinite(xi) or xi <= -0.999:
+        return _PENALTY
     if abs(xi) < 1e-10:
         xi = 1e-10 if xi >= 0 else -1e-10
     sigma = np.exp(par[1])
@@ -185,24 +190,28 @@ def fit_gpd_grouped(
 
 def profile_ci_xi_grouped(
     values, threshold, grid=5.0, cells=None, level=0.95,
-    n_bisect=34, lo_limit=-0.95, hi_limit=0.60, fit=None,
+    n_bisect=40, xi_floor=-0.999, xi_ceil=5.0, fit=None,
 ) -> dict:
     """Profile-likelihood interval for the shape under the grouped likelihood.
 
     Inverts the one-degree-of-freedom likelihood-ratio statistic,
-    ``2[ell_p(xi_hat) - ell_p(xi)] = chi2_{1,level}``, by bisection on the
-    interval-censored likelihood, so the interval refers to the same estimator
-    whose point value is reported.
+    ``2[ell_p(xi_hat) - ell_p(xi)] = chi2_{1,level}``, by searching outward from
+    ``xi_hat`` on each side, so the interval always contains the estimator whose
+    point value is reported. ``xi_floor`` (the GPD existence region) and
+    ``xi_ceil`` bound the numerical search; a limit that reaches one of them is
+    returned with ``lo_at_bound`` / ``hi_at_bound`` set, to distinguish a
+    numerical search boundary from a statistical limit.
     """
     values = np.asarray(values, dtype=float)
+    if not 0 < level < 1:
+        raise ValueError("level must lie strictly between 0 and 1")
     if cells is None:
         cells = interval_cells(values[values > threshold], threshold, grid)
     a, b, trunc = cells
     if fit is None:
         fit = fit_gpd_grouped(values, threshold, grid=grid, cells=cells)
-    ll_max = fit["loglik"]
+    xi_hat = float(fit["xi"])
     log_sigma_hat = float(np.log(fit["sigma"]))
-    target = ll_max - float(chi2.ppf(level, 1)) / 2.0
 
     def profile(xi):
         # profiling out the single scale is a smooth 1-D problem: a bounded
@@ -213,26 +222,39 @@ def profile_ci_xi_grouped(
             method="bounded", options={"xatol": 1e-9})
         return -float(r.fun)
 
+    # reference the target at the re-profiled value at xi_hat so the interval is
+    # guaranteed to contain xi_hat even when the fit optimiser stopped a hair off
+    target = profile(xi_hat) - float(chi2.ppf(level, 1)) / 2.0
+
     def inside(xi):
         return profile(xi) >= target
 
-    out = {}
-    for side, bound in (("lo", lo_limit), ("hi", hi_limit)):
-        if inside(bound):
-            out[side], out[side + "_at_bound"] = float(bound), True
-            continue
-        lo, hi = (bound, fit["xi"]) if side == "lo" else (fit["xi"], bound)
+    def find_side(direction: int) -> tuple:
+        boundary = xi_floor if direction < 0 else xi_ceil
+        if inside(boundary):
+            return float(boundary), True
+        inner, step = xi_hat, 0.02
+        while True:
+            outer = inner + direction * step
+            if (direction < 0 and outer <= boundary) or (direction > 0 and outer >= boundary):
+                outer = boundary
+            if not inside(outer):
+                break
+            inner = outer
+            step *= 1.6
+        t_end, f_end = inner, outer
         for _ in range(n_bisect):
-            mid = 0.5 * (lo + hi)
+            mid = 0.5 * (t_end + f_end)
             if inside(mid):
-                hi = mid if side == "lo" else hi
-                lo = lo if side == "lo" else mid
+                t_end = mid
             else:
-                lo = mid if side == "lo" else lo
-                hi = hi if side == "lo" else mid
-        out[side], out[side + "_at_bound"] = float(0.5 * (lo + hi)), False
-    return {"xi_hat": fit["xi"], "ci": (out["lo"], out["hi"]),
-            "lo_at_bound": out["lo_at_bound"], "hi_at_bound": out["hi_at_bound"],
+                f_end = mid
+        return 0.5 * (t_end + f_end), False
+
+    lo, lo_at_bound = find_side(-1)
+    hi, hi_at_bound = find_side(+1)
+    return {"xi_hat": xi_hat, "ci": (float(lo), float(hi)),
+            "lo_at_bound": bool(lo_at_bound), "hi_at_bound": bool(hi_at_bound),
             "level": level}
 
 
@@ -257,7 +279,8 @@ def _grouped_nll_nu(xi, nu, a, b, trunc):
 
 
 def profile_endpoint_ci(
-    values, threshold, grid=5.0, cells=None, level=0.95, n_bisect=40, gap_max=400.0,
+    values, threshold, grid=5.0, cells=None, level=0.95, n_bisect=40,
+    gap_init=50.0, gap_cap=1.0e7, fit=None,
 ) -> dict:
     """Profile-likelihood interval for the finite endpoint ``M*`` itself.
 
@@ -265,81 +288,151 @@ def profile_endpoint_ci(
     shape out, so the interval respects the non-linearity of ``M* = u -
     sigma/xi`` where a percentile bootstrap and a Wald interval do not. Returns
     the interval on the ``M*`` scale.
+
+    The upper search grows adaptively: if the profile is still above the LR
+    threshold once the bracket reaches ``gap_cap`` the endpoint is not bounded
+    at ``level`` and the upper limit is returned as ``inf`` with
+    ``upper_at_bound=True``, instead of a finite number that is only the search
+    boundary. When the unconstrained shape fit is not negative the point
+    endpoint is ``inf`` as well and only the lower limit is finite.
     """
     values = np.asarray(values, dtype=float)
+    if not 0 < level < 1:
+        raise ValueError("level must lie strictly between 0 and 1")
     if cells is None:
         cells = interval_cells(values[values > threshold], threshold, grid)
     a, b, trunc = (np.asarray(c, dtype=float) for c in cells)
     a_max = float(a.max())
+    if fit is None:
+        fit = fit_gpd_grouped(values, threshold, grid=grid, cells=cells)
+    crit = float(chi2.ppf(level, 1)) / 2.0
 
     def prof(nu):
         r = minimize_scalar(lambda x: _grouped_nll_nu(x, nu, a, b, trunc),
-                            bounds=(-0.95, -1e-4), method="bounded",
+                            bounds=(-0.999, -1e-8), method="bounded",
                             options={"xatol": 1e-10})
         return -float(r.fun), float(r.x)
 
-    mesh = a_max + np.exp(np.linspace(np.log(0.05), np.log(gap_max), 90))
-    vals = np.array([prof(v)[0] for v in mesh])
-    k = int(np.argmax(vals))
-    r = minimize_scalar(lambda v: -prof(v)[0],
-                        bounds=(mesh[max(k - 1, 0)], mesh[min(k + 1, mesh.size - 1)]),
-                        method="bounded", options={"xatol": 1e-8})
-    nu_hat, ll_max = float(r.x), -float(r.fun)
-    target = ll_max - float(chi2.ppf(level, 1)) / 2.0
+    # locate the endpoint MLE on a log mesh, growing the range while the maximum
+    # sits at the far edge (the profile still rising as nu -> inf, xi -> 0-)
+    gap = float(gap_init)
+    while True:
+        mesh = a_max + np.exp(np.linspace(np.log(0.05), np.log(gap), 120))
+        vals = np.array([prof(v)[0] for v in mesh])
+        k = int(np.argmax(vals))
+        if k < mesh.size - 1 or gap >= gap_cap:
+            break
+        gap *= 8.0
+    rising_to_infinity = k == mesh.size - 1 and gap >= gap_cap
+    unbounded_point = bool(fit["xi"] >= -1e-6 or rising_to_infinity)
+    if k == mesh.size - 1:
+        nu_hat, ll_max = float(mesh[-1]), float(vals[-1])
+    else:
+        r = minimize_scalar(lambda v: -prof(v)[0],
+                            bounds=(mesh[max(k - 1, 0)], mesh[min(k + 1, mesh.size - 1)]),
+                            method="bounded", options={"xatol": 1e-8})
+        nu_hat, ll_max = float(r.x), -float(r.fun)
+    target = ll_max - crit
 
+    # lower limit: bisect between the largest observed cell edge and nu_hat
     lo_lim, hi_lim = a_max * (1 + 1e-9), nu_hat
-    for _ in range(n_bisect):
-        mid = 0.5 * (lo_lim + hi_lim)
-        if prof(mid)[0] >= target:
-            hi_lim = mid
-        else:
-            lo_lim = mid
-    nu_lo = 0.5 * (lo_lim + hi_lim)
+    lower_at_bound = prof(lo_lim)[0] >= target
+    if not lower_at_bound:
+        for _ in range(n_bisect):
+            mid = 0.5 * (lo_lim + hi_lim)
+            if prof(mid)[0] >= target:
+                hi_lim = mid
+            else:
+                lo_lim = mid
+    nu_lo = lo_lim if lower_at_bound else 0.5 * (lo_lim + hi_lim)
 
-    lo_lim, hi_lim = nu_hat, a_max + gap_max
-    at_bound = prof(hi_lim)[0] >= target
-    if not at_bound:
+    # upper limit: grow the bracket until the profile drops below target; a cap
+    # hit means the endpoint is not identified from above at this level
+    upper_at_bound = unbounded_point
+    if not upper_at_bound:
+        far = max(nu_hat * 2.0, nu_hat + gap_init)
+        while prof(far)[0] >= target:
+            far *= 8.0
+            if far >= a_max + gap_cap:
+                upper_at_bound = True
+                break
+    if upper_at_bound:
+        nu_hi = np.inf
+    else:
+        lo_lim, hi_lim = nu_hat, far
         for _ in range(n_bisect):
             mid = 0.5 * (lo_lim + hi_lim)
             if prof(mid)[0] >= target:
                 lo_lim = mid
             else:
                 hi_lim = mid
-    nu_hi = hi_lim if at_bound else 0.5 * (lo_lim + hi_lim)
+        nu_hi = 0.5 * (lo_lim + hi_lim)
+
     xi_hat = prof(nu_hat)[1]
-    return {"endpoint": float(threshold + nu_hat),
-            "ci": (float(threshold + nu_lo), float(threshold + nu_hi)),
-            "upper_at_bound": bool(at_bound), "xi": xi_hat,
-            "sigma": float(-xi_hat * nu_hat), "level": level,
+    endpoint = np.inf if unbounded_point else float(threshold + nu_hat)
+    hi_val = np.inf if not np.isfinite(nu_hi) else float(threshold + nu_hi)
+    return {"endpoint": endpoint,
+            "ci": (float(threshold + nu_lo), hi_val),
+            "upper_at_bound": bool(upper_at_bound),
+            "lower_at_bound": bool(lower_at_bound),
+            "xi": xi_hat, "sigma": float(-xi_hat * nu_hat),
+            "level": level,
             "method": "profile likelihood on the reparameterised endpoint"}
 
 
 @dataclass
 class GroupedGPDFit:
-    """Interval-censored GPD fit with profile intervals for shape and endpoint."""
+    """Interval-censored GPD fit with profile intervals for shape and endpoint.
+
+    ``xi_ci`` and ``endpoint_ci`` are at ``level`` (default 0.95). The historical
+    names ``xi_ci95`` / ``endpoint_ci95`` remain as read-only aliases. A limit
+    that only reached the numerical search boundary is marked in
+    ``xi_ci_at_bound`` / ``endpoint_ci_at_bound`` (``(lower, upper)``); an
+    unidentified upper endpoint limit is reported as ``inf``.
+    """
 
     threshold: float
     n_exceedances: int
     xi: float
     sigma: float
-    xi_ci95: tuple
+    xi_ci: tuple
     endpoint: float
-    endpoint_ci95: tuple
+    endpoint_ci: tuple
     loglik: float
+    level: float = 0.95
+    xi_ci_at_bound: tuple = (False, False)
+    endpoint_ci_at_bound: tuple = (False, False)
+
+    @property
+    def xi_ci95(self) -> tuple:
+        """Historical alias of :attr:`xi_ci` (the interval is at :attr:`level`)."""
+        return self.xi_ci
+
+    @property
+    def endpoint_ci95(self) -> tuple:
+        """Historical alias of :attr:`endpoint_ci`."""
+        return self.endpoint_ci
 
     @property
     def bounded_supported(self) -> bool:
-        """Whether the 95% profile interval for the shape lies wholly below zero."""
-        return bool(np.isfinite(self.xi_ci95[1]) and self.xi_ci95[1] < 0)
+        """Whether the profile interval for the shape lies wholly below zero."""
+        return bool(np.isfinite(self.xi_ci[1]) and self.xi_ci[1] < 0)
 
     def summary(self) -> str:
-        shape_ci = f"({self.xi_ci95[0]:.4f}, {self.xi_ci95[1]:.4f})"
+        pct = f"{self.level:.0%}"
+        shape_ci = f"({self.xi_ci[0]:.4f}, {self.xi_ci[1]:.4f})"
+        if any(self.xi_ci_at_bound):
+            shape_ci += " [search bound reached]"
         ep = f"{self.endpoint:.2f}" if np.isfinite(self.endpoint) else "inf"
-        ep_ci = f"[{self.endpoint_ci95[0]:.2f}, {self.endpoint_ci95[1]:.2f}]"
-        tail = "supported" if self.bounded_supported else "not supported by the 95% interval"
+        hi = self.endpoint_ci[1]
+        ep_hi = "inf" if not np.isfinite(hi) else f"{hi:.2f}"
+        ep_ci = f"[{self.endpoint_ci[0]:.2f}, {ep_hi}]"
+        if self.endpoint_ci_at_bound[1]:
+            ep_ci += " (upper limit not identified)"
+        tail = "supported" if self.bounded_supported else f"not supported by the {pct} interval"
         return (f"grouped GPD fit (u={self.threshold:g}, n={self.n_exceedances}): "
                 f"xi={self.xi:.4f} {shape_ci}, sigma={self.sigma:.3f}; "
-                f"bounded tail {tail}; endpoint={ep} {ep_ci} (profile)")
+                f"bounded tail {tail}; endpoint={ep} {ep_ci} (profile, {pct})")
 
 
 def gpd_pot_grouped(
@@ -351,17 +444,25 @@ def gpd_pot_grouped(
     """Fit an interval-censored GPD to discretised exceedances over ``threshold``.
 
     ``grid`` is the recording precision (a single width, or several widths for a
-    mixed-precision record). Returns a :class:`GroupedGPDFit` with the shape and
-    endpoint each carrying a profile-likelihood interval.
+    mixed-precision record). ``level`` sets the profile-interval level (default
+    0.95). Returns a :class:`GroupedGPDFit` with the shape and endpoint each
+    carrying a profile-likelihood interval at ``level`` and a boundary flag.
     """
+    if not 0 < level < 1:
+        raise ValueError("level must lie strictly between 0 and 1")
     values = np.asarray(values, dtype=float)
     cells = interval_cells(values[values > threshold], threshold, grid)
     fit = fit_gpd_grouped(values, threshold, grid=grid, cells=cells)
-    xi_ci = profile_ci_xi_grouped(values, threshold, grid=grid, cells=cells,
-                                  level=level, fit=fit)["ci"]
-    ep = profile_endpoint_ci(values, threshold, grid=grid, cells=cells, level=level)
+    xi_prof = profile_ci_xi_grouped(values, threshold, grid=grid, cells=cells,
+                                    level=level, fit=fit)
+    ep = profile_endpoint_ci(values, threshold, grid=grid, cells=cells,
+                             level=level, fit=fit)
     return GroupedGPDFit(
         threshold=float(threshold), n_exceedances=fit["n"], xi=fit["xi"],
-        sigma=fit["sigma"], xi_ci95=(float(xi_ci[0]), float(xi_ci[1])),
-        endpoint=fit["endpoint"], endpoint_ci95=ep["ci"], loglik=fit["loglik"],
+        sigma=fit["sigma"],
+        xi_ci=(float(xi_prof["ci"][0]), float(xi_prof["ci"][1])),
+        endpoint=fit["endpoint"], endpoint_ci=tuple(ep["ci"]), loglik=fit["loglik"],
+        level=float(level),
+        xi_ci_at_bound=(bool(xi_prof["lo_at_bound"]), bool(xi_prof["hi_at_bound"])),
+        endpoint_ci_at_bound=(bool(ep["lower_at_bound"]), bool(ep["upper_at_bound"])),
     )

@@ -13,6 +13,18 @@ All notable changes are recorded here.
 
 ### Fixed
 
+- Make the grouped shape and endpoint profile intervals consistent with the
+  fit they describe. `profile_ci_xi_grouped` searches outward from `xi_hat`
+  instead of inverting a fixed `[-0.95, 0.60]` bracket, so the interval always
+  contains the estimate; the grouped kernel now stays in the GPD existence
+  region `xi > -1`, matching the continuous fit. `profile_endpoint_ci` grows
+  its upper search adaptively and reports `inf` (with `upper_at_bound`) when the
+  endpoint is not identified from above at the requested level or the shape is
+  not negative, instead of a finite number that is only the search boundary.
+  `GroupedGPDFit` gains `level`, `xi_ci`, `endpoint_ci`, `xi_ci_at_bound` and
+  `endpoint_ci_at_bound`; `xi_ci95` / `endpoint_ci95` stay as read-only aliases,
+  and the summary text and `bounded_supported` now report the level actually
+  requested rather than a hard-coded 95%.
 - Stop the sequential Monte Carlo protocol from declaring an invalid run
   converged. `SequentialRun` now records failed replicates as `NaN` and stops
   on `n_effective` (finite outcomes) rather than the attempted count, so a run

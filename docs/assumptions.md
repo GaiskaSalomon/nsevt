@@ -23,13 +23,17 @@ problematic at and below `xi = -0.5`; nsevt emits a warning in this regime.
 ## Grouped (interval-censored) fit
 
 `gpd_pot_grouped` treats each recorded value as censored to its rounding cell
-and conditions on the per-observation selection rule (a value enters the sample
-because its *recorded* mark exceeded the threshold, so the smallest true excess
-that could have produced it is half a grid step). It assumes a single GPD shape
-and scale over the exceedances and that the stated grid widths describe the
-recording precision. The shape interval is a profile-likelihood interval under
-the same interval-censored likelihood, so it refers to the estimator whose point
-value is reported. The endpoint interval is a profile interval on the
+and conditions on the selection rule (a value enters the sample because its
+*recorded* mark is a grid point above the threshold, so the smallest true excess
+that could have produced it is the lower rounding edge of the smallest such
+mark: half a grid step when the threshold lies on the grid, less when it does
+not). It assumes a single GPD shape and scale over the exceedances and that the
+stated grid widths describe the recording precision. The shape interval is a
+profile-likelihood interval under the same interval-censored likelihood, found
+by searching outward from the estimate so it always contains it; a limit that
+only reached the numerical search boundary is flagged rather than reported as a
+statistical limit, and an endpoint that is not identified from above is reported
+as infinite. The endpoint interval is a profile interval on the
 reparameterised endpoint, which respects the non-linearity of `M* = u -
 sigma/xi` where a percentile bootstrap does not; it remains model-conditional
 and is not a physical bound. As with the continuous fit, a negative shape

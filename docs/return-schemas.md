@@ -45,16 +45,23 @@ validated (`ValueError` unless finite, aligned with the exceedances, and
 `0 <= a < b`, `0 <= trunc <= b`). `RuntimeError` when no start reaches a
 feasible optimum, so a penalty objective is never reported as a fit.
 
-### `profile_ci_xi_grouped(...) -> dict`
+### `profile_ci_xi_grouped(..., level=0.95, xi_floor=-0.999, xi_ceil=5.0) -> dict`
 `{"xi_hat", "ci": (lo, hi), "lo_at_bound": bool, "hi_at_bound": bool, "level"}`.
+The interval is found by searching outward from `xi_hat`, so it always contains
+`xi_hat`; `*_at_bound` marks a limit that only reached `xi_floor` / `xi_ceil`.
 
-### `profile_endpoint_ci(...) -> dict`
-`{"endpoint", "ci": (lo, hi), "upper_at_bound": bool, "xi", "sigma", "level",
-"method": str}`.
+### `profile_endpoint_ci(..., level=0.95, gap_init=50.0, gap_cap=1e7) -> dict`
+`{"endpoint", "ci": (lo, hi), "upper_at_bound": bool, "lower_at_bound": bool,
+"xi", "sigma", "level", "method": str}`. `endpoint` and `ci[1]` are `inf` when
+the endpoint is not identified from above at `level` (unbounded shape or the
+upper search reached `gap_cap`); `ci[0]` stays finite.
 
 ### `gpd_pot_grouped(values, threshold, grid=5.0, level=0.95) -> GroupedGPDFit`
-Dataclass fields: `threshold, n_exceedances, xi, sigma, xi_ci95 (lo, hi),
-endpoint, endpoint_ci95 (lo, hi), loglik`.
+Dataclass fields: `threshold, n_exceedances, xi, sigma, xi_ci (lo, hi),
+endpoint, endpoint_ci (lo, hi), loglik, level, xi_ci_at_bound (lo, hi),
+endpoint_ci_at_bound (lo, hi)`. `xi_ci95` / `endpoint_ci95` remain as read-only
+aliases of `xi_ci` / `endpoint_ci`. The intervals are at `level` (not fixed
+0.95); `endpoint_ci` upper limit is `inf` when unidentified.
 Property: `bounded_supported`. Method: `summary() -> str`.
 
 ## Trend, power, MDE (`nsevt.trend`)
