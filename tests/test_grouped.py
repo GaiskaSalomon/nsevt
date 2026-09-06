@@ -158,6 +158,33 @@ def test_profile_endpoint_ci_reports_unbounded_tail_as_infinite():
     assert np.isfinite(ep["ci"][0])          # data still bound it from below
 
 
+def test_grouped_likelihood_is_stable_near_zero_shape():
+    # cells far from the threshold with a huge scale and xi = 0: forming the
+    # cell probability as S(a) - S(b) in ordinary scale cancelled to zero and
+    # returned the penalty; in log space it is a finite NLL (~78.06).
+    a = np.array([2.5, 7.5, 12.5])
+    b = np.array([7.5, 12.5, 17.5])
+    trunc = np.zeros(3)
+    nll = grouped._grouped_nll(np.array([0.0, np.log(1e12)]), a, b, trunc)
+    assert np.isfinite(nll) and nll < grouped._PENALTY
+    assert nll == pytest.approx(78.06474936, rel=1e-6)
+
+    # continuity through xi = 0 and agreement with a direct exp computation
+    tt = np.full(3, 2.5)
+
+    def ref(xi, sigma):
+        surv = ((lambda z: np.exp(-z / sigma)) if abs(xi) < 1e-12
+                else (lambda z: (1 + xi * z / sigma) ** (-1 / xi)))
+        return float(np.sum(np.log(surv(a) - surv(b))) - np.sum(np.log(surv(tt))))
+
+    vals = [grouped._grouped_nll(np.array([xi, np.log(20.0)]), a, b, tt)
+            for xi in (-1e-4, -1e-8, 0.0, 1e-8, 1e-4)]
+    assert max(vals) - min(vals) < 1e-3                     # no jump at zero
+    for xi, sig in [(-0.2, 15.0), (0.1, 8.0), (0.0, 12.0)]:
+        got = -grouped._grouped_loglik(a, b, tt, xi, sig)
+        assert got == pytest.approx(-ref(xi, sig), abs=1e-9)
+
+
 def test_gpd_pot_grouped_honours_requested_level():
     rng = np.random.default_rng(0)
     marks = _discretised_bounded(rng, n=6000)

@@ -14,6 +14,24 @@ All notable changes are recorded here.
   pytest 9 has no Python 3.9 distribution); an exact runtime pin for a
   simulation campaign is reserved for a separate `constraints/science.txt`.
 
+### Fixed
+
+- Compute the grouped (interval-censored) cell probabilities in log space. The
+  cell was formed as `S(a) - S(b)` in ordinary scale and cancelled to zero — so
+  the fit reported the penalty value — when the two survivals were close: a wide
+  or covariate-dependent scale, a narrow cell, or a shape near zero (which was
+  also nudged off zero by `1e-10`). `nsevt.grouped` and `nsevt.design` now share
+  `_grouped_loglik`, which uses `log1p`/`expm1` and the exact `xi -> 0` limit
+  `-z / sigma`, so the likelihood is continuous through zero shape and matches a
+  direct high-precision evaluation.
+- Give `nsevt.design.return_level` and `nsevt.GPDFit.return_level` one policy
+  outside the tail. For `m * rate <= 1` the target is a non-exceedance quantile
+  at or below the threshold; `design.return_level` extrapolated below it
+  (returning 36.58 for a period the model cannot represent) while
+  `GPDFit.return_level` clipped to the threshold. Both now return the threshold
+  there, agree on the common domain, and emit a `RuntimeWarning` when strictly
+  below the boundary (`m * rate < 1`).
+
 ### Documentation
 
 - Add `docs/stability.md` as the single authoritative list of which symbols the

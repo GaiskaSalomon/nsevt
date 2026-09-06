@@ -28,7 +28,9 @@ endpoint, endpoint_ci95 [lo, hi], bootstrap_fraction_xi_negative,
 n_boot_successful, xi_ci95_truncated (bool, bool)`.
 Properties: `bounded_estimate` (point estimate `xi < 0`), `bounded_supported`
 (whole `xi_ci95` below zero), `bounded` (alias of `bounded_supported`).
-Methods: `return_level(return_period, rate=None) -> float`, `summary() -> str`.
+Methods: `return_level(return_period, rate=None) -> float` (returns `threshold`
+and warns when `return_period * rate < 1`, a quantile below the POT domain),
+`summary() -> str`.
 
 ## Grouped (`nsevt.grouped`)
 
@@ -168,7 +170,10 @@ sequential block.
 `{"coef" (int), "estimate", "ci": [lo, hi], "at_bound", "level", "loglik"}`.
 
 ### `return_level(xi, sigma, threshold, rate, m) -> ndarray`
-The return level(s) for scalar or array `m`.
+The return level(s) for scalar or array `m`. Entries with `m * rate <= 1` are a
+non-exceedance quantile outside the peaks-over-threshold model and are returned
+as `threshold` (matching `GPDFit.return_level`), with a `RuntimeWarning` when
+any entry is strictly below the domain (`m * rate < 1`).
 
 ### `profile_ci_return_level(values, threshold, rate, m, ...) -> dict | None`
 `{"m", "return_level", "ci": [lo, hi], "upper_at_bound", "xi_at_max", "loglik",

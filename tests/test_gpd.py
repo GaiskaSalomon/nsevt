@@ -99,8 +99,15 @@ def test_summary_branches_and_return_level_edges():
     # bounded & supported -> summary "supports xi < 0"
     fit = nsevt.gpd_pot(_bounded(500), threshold=40, n_boot=20)
     assert "supports xi < 0" in fit.summary()
-    # return level with q >= 1 falls back to the threshold
-    assert fit.return_level(2, rate=0.4) == float(fit.threshold)
+    # return level below the POT domain (return_period * rate < 1) falls back to
+    # the threshold and warns
+    with pytest.warns(RuntimeWarning, match="sub-threshold"):
+        assert fit.return_level(2, rate=0.4) == float(fit.threshold)
+    # exactly at the domain boundary (return_period * rate == 1): threshold, no warning
+    import warnings as _w
+    with _w.catch_warnings():
+        _w.simplefilter("error")
+        assert fit.return_level(2, rate=0.5) == float(fit.threshold)
 
     # xi == 0 branch of return_level, and the "inf"/"not available"/"xi >= 0"
     # branches of summary

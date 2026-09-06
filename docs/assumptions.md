@@ -121,7 +121,11 @@ rather than assuming the asymptotic level. `return_level` and
 exceedance rate; `profile_ci_return_level` is restricted to bounded tails
 (`xi < 0`) and profiles the level itself, so the interval is a model-based
 summary, not a distribution-free bound, and does not propagate uncertainty in the
-threshold or the exceedance rate.
+threshold or the exceedance rate. A return period with `m * rate <= 1` targets a
+quantile at or below the threshold, which the peaks-over-threshold model does not
+describe: both `nsevt.design.return_level` and `nsevt.GPDFit.return_level` return
+the threshold there (with a `RuntimeWarning` below the boundary), and
+`profile_ci_return_level` returns `None`.
 
 ## Experimental modules
 

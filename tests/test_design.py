@@ -108,6 +108,35 @@ def test_bounded_return_level_stays_below_the_endpoint():
     assert rl < endpoint                         # can never exceed the ceiling
 
 
+def test_return_level_out_of_tail_matches_gpdfit_and_warns():
+    # m * rate < 1 is a non-exceedance quantile: design.return_level used to
+    # extrapolate below the threshold (36.58 for m=2), GPDFit clipped to it.
+    xi, sigma, u = -0.2, 15.0, 40.0
+    fit = nsevt.GPDFit(threshold=u, n_exceedances=100, xi=xi, sigma=sigma,
+                       xi_ci95=(-0.3, -0.1), endpoint=u - sigma / xi,
+                       endpoint_ci95=[80.0, 300.0],
+                       bootstrap_fraction_xi_negative=1.0)
+    with pytest.warns(RuntimeWarning, match="sub-threshold"):
+        d = float(design.return_level(xi, sigma, u, 0.4, 2.0))
+    assert d == pytest.approx(u)
+    with pytest.warns(RuntimeWarning):
+        g = fit.return_level(2, rate=0.4)
+    assert g == pytest.approx(u)
+    # exact boundary m * rate == 1: threshold, no warning
+    import warnings as _w
+    with _w.catch_warnings():
+        _w.simplefilter("error")
+        assert float(design.return_level(xi, sigma, u, 0.5, 2.0)) == pytest.approx(u)
+    # common domain (m * rate > 1): the two functions agree
+    for m in (10.0, 100.0, 1000.0):
+        assert float(design.return_level(xi, sigma, u, 0.4, m)) == pytest.approx(
+            fit.return_level(m, rate=0.4))
+    # a vector m spanning the boundary clips only the out-of-tail entries
+    with pytest.warns(RuntimeWarning):
+        arr = design.return_level(xi, sigma, u, 0.4, np.array([1.0, 2.0, 100.0]))
+    assert arr[0] == pytest.approx(u) and arr[1] == pytest.approx(u) and arr[2] > u
+
+
 @pytest.mark.parametrize(
     "kwargs, message",
     [

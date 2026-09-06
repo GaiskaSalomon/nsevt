@@ -292,6 +292,13 @@ class GPDFit:
         observations.  Without it, the return period is conditional on an
         exceedance.  Extrapolation far beyond the observed record remains
         model-dependent even when a finite endpoint is estimated.
+
+        When ``return_period * rate <= 1`` the level is a non-exceedance quantile
+        at or below the threshold, which the peaks-over-threshold model does not
+        describe. The threshold is returned in that case, and a
+        ``RuntimeWarning`` is emitted when it is strictly below the domain
+        (``return_period * rate < 1``); :func:`nsevt.design.return_level`
+        follows the same rule.
         """
         if not np.isfinite(return_period) or return_period <= 1:
             raise ValueError("return_period must be finite and greater than 1")
@@ -300,6 +307,14 @@ class GPDFit:
         p = 1.0 / return_period
         q = p / rate if rate is not None else p
         if q >= 1:
+            if q > 1:
+                warnings.warn(
+                    "return period implies a sub-threshold quantile "
+                    "(return_period * rate < 1); the peaks-over-threshold model "
+                    "only describes exceedances, so the level is the threshold",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
             return float(self.threshold)
         if abs(self.xi) < 1e-8:
             return float(self.threshold - self.sigma * np.log(q))

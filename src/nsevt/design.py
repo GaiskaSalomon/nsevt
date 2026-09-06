@@ -25,6 +25,7 @@ numerics are ported from unit-tested research code and use NumPy and SciPy only.
 """
 from __future__ import annotations
 
+import warnings
 from typing import Optional
 
 import numpy as np
@@ -32,7 +33,9 @@ import numpy.typing as npt
 from scipy.optimize import minimize, minimize_scalar
 from scipy.stats import chi2
 
-from .grouped import _gpd_surv, _grouped_nll_nu, interval_cells
+from .grouped import _grouped_loglik, _grouped_nll_nu, interval_cells
+
+_PENALTY = 1e10
 
 
 # --------------------------------------------------------------------------
@@ -43,26 +46,18 @@ def _grouped_nll_design(par, a, b, X, trunc):
 
     ``X`` is ``(n, p)`` with an intercept in column 0, so the same routine covers
     the stationary model, a trend, group-specific scales, or any combination.
+    The cell probabilities are formed in log space (see
+    :func:`nsevt.grouped._grouped_loglik`) so a wide covariate-dependent scale
+    or a shape near zero does not cancel a cell to zero.
     """
-    xi = par[0]
-    if abs(xi) < 1e-10:
-        xi = 1e-10 if xi >= 0 else -1e-10
+    xi = float(par[0])
+    if not np.isfinite(xi):
+        return _PENALTY
     s = np.exp(X @ par[1:])
     if not np.all(np.isfinite(s)) or np.any(s <= 0):
-        return 1e10
-    if np.any(1.0 + xi * a / s <= 0):
-        return 1e10
-    cell = _gpd_surv(a, xi, s) - _gpd_surv(b, xi, s)
-    if np.any(~np.isfinite(cell)) or np.any(cell <= 1e-300):
-        return 1e10
-    ll = float(np.sum(np.log(cell)))
-    trunc = np.asarray(trunc, dtype=float)
-    if np.any(trunc > 0):
-        surv = np.broadcast_to(_gpd_surv(trunc, xi, s), np.shape(a))
-        if np.any(surv <= 1e-300):
-            return 1e10
-        ll -= float(np.sum(np.log(surv)))
-    return -ll
+        return _PENALTY
+    ll = _grouped_loglik(a, b, trunc, xi, s)
+    return _PENALTY if ll is None or not np.isfinite(ll) else -ll
 
 
 def _cells_of(values, threshold, grid, cells):
@@ -252,6 +247,12 @@ def return_level(xi: float, sigma: float, threshold: float, rate: float,
     peaks-over-threshold rate ``zeta``); ``m`` is the return period in the same
     observation unit. Returns ``threshold + (sigma / xi)[(m rate)^xi - 1]``, or
     the ``xi -> 0`` limit ``threshold + sigma log(m rate)``.
+
+    Where ``m * rate <= 1`` the target is a non-exceedance quantile at or below
+    the threshold, outside the peaks-over-threshold model; the threshold is
+    returned for those entries (matching :meth:`nsevt.GPDFit.return_level`), with
+    a ``RuntimeWarning`` when any entry is strictly below the domain
+    (``m * rate < 1``).
     """
     m = np.asarray(m, dtype=float)
     xi = float(xi)
@@ -266,10 +267,21 @@ def return_level(xi: float, sigma: float, threshold: float, rate: float,
         raise ValueError("rate must lie in (0, 1]")
     if m.size == 0 or np.any(~np.isfinite(m)) or np.any(m <= 0):
         raise ValueError("m must contain positive finite return periods")
+    mr = m * rate
     with np.errstate(over="ignore", invalid="ignore"):
         if abs(xi) < 1e-8:
-            return threshold + sigma * np.log(m * rate)
-        return threshold + (sigma / xi) * ((m * rate) ** xi - 1.0)
+            rl = threshold + sigma * np.log(mr)
+        else:
+            rl = threshold + (sigma / xi) * (mr ** xi - 1.0)
+    if np.any(mr < 1.0):
+        warnings.warn(
+            "return period implies a sub-threshold quantile (m * rate < 1); the "
+            "peaks-over-threshold model only describes exceedances, so the level "
+            "is reported as the threshold there",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+    return np.where(mr <= 1.0, threshold, rl)
 
 
 def profile_ci_return_level(

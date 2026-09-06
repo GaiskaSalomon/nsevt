@@ -36,10 +36,52 @@ from scipy.stats import chi2
 _PENALTY = 1e10
 
 
-def _gpd_surv(z: np.ndarray, xi: float, sigma: float) -> np.ndarray:
-    """GPD survival ``(1 + xi z / sigma)^(-1/xi)``, zero past the endpoint."""
-    y = 1.0 + xi * z / sigma
-    return np.where(y <= 0, 0.0, np.maximum(y, 1e-300) ** (-1.0 / xi))
+def _log_gpd_surv(z: np.ndarray, xi: float, sigma) -> np.ndarray:
+    """Log GPD survival ``(-1/xi) log(1 + xi z / sigma)``.
+
+    Uses the exact ``xi -> 0`` limit ``-z / sigma`` (so the likelihood is
+    continuous through zero shape) and ``log1p`` for the general term, and
+    returns ``-inf`` beyond the support. ``sigma`` may be a scalar or aligned
+    with ``z``.
+    """
+    z = np.asarray(z, dtype=float)
+    sigma = np.asarray(sigma, dtype=float)
+    if abs(float(xi)) < 1e-8:
+        return -z / sigma
+    t = xi * z / sigma
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(t > -1.0, -np.log1p(t) / xi, -np.inf)
+
+
+def _grouped_loglik(a, b, trunc, xi: float, sigma) -> float | None:
+    """Summed ``log P(cell_i | X > trunc_i)`` for the grouped GPD, in log space.
+
+    The cell probability is a difference of survivals; forming it as
+    ``exp(log S(a)) - exp(log S(b))`` cancels catastrophically when the two
+    survivals are close (a wide scale, a narrow cell, shape near zero). This
+    keeps the whole computation in logs:
+    ``log[S(a) - S(b)] = log S(a) + log1p(-exp(log S(b) - log S(a)))``.
+    Returns ``None`` when a cell has no representable mass or the support fails.
+    """
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+    lsa = _log_gpd_surv(a, xi, sigma)
+    lsb = _log_gpd_surv(b, xi, sigma)
+    if np.any(~np.isfinite(lsa)):
+        return None
+    d = np.minimum(lsb - lsa, -1e-15)          # b > a, so log S(b) < log S(a)
+    with np.errstate(over="ignore"):
+        log_cell = lsa + np.log1p(-np.exp(d))
+    if np.any(~np.isfinite(log_cell)):
+        return None
+    ll = float(np.sum(log_cell))
+    trunc = np.asarray(trunc, dtype=float)
+    if np.any(trunc > 0):
+        lst = _log_gpd_surv(trunc, xi, sigma)
+        if np.any(~np.isfinite(lst)):
+            return None
+        ll -= float(np.sum(np.broadcast_to(lst, np.shape(log_cell))))
+    return ll
 
 
 def interval_cells(
@@ -113,30 +155,17 @@ def _validate_cells(cells: tuple, n: int) -> tuple:
 
 def _grouped_nll(par, a, b, trunc):
     """Stationary grouped negative log-likelihood in ``(xi, log sigma)``."""
-    xi = par[0]
+    xi = float(par[0])
     # keep the search in the GPD existence region xi > -1, matching the
     # continuous kernel; below it the interval-censored MLE is not regular and
     # the profile interval would not refer to the same estimator
     if not np.isfinite(xi) or xi <= -0.999:
         return _PENALTY
-    if abs(xi) < 1e-10:
-        xi = 1e-10 if xi >= 0 else -1e-10
     sigma = np.exp(par[1])
     if not np.isfinite(sigma) or sigma <= 0:
         return _PENALTY
-    if np.any(1.0 + xi * a / sigma <= 0):
-        return _PENALTY
-    cell = _gpd_surv(a, xi, sigma) - _gpd_surv(b, xi, sigma)
-    if np.any(~np.isfinite(cell)) or np.any(cell <= 1e-300):
-        return _PENALTY
-    ll = float(np.sum(np.log(cell)))
-    trunc = np.asarray(trunc, dtype=float)
-    if np.any(trunc > 0):
-        surv = _gpd_surv(trunc, xi, sigma)
-        if np.any(surv <= 1e-300):
-            return _PENALTY
-        ll -= float(np.sum(np.log(surv)))
-    return -ll
+    ll = _grouped_loglik(a, b, trunc, xi, float(sigma))
+    return _PENALTY if ll is None or not np.isfinite(ll) else -ll
 
 
 def fit_gpd_grouped(
