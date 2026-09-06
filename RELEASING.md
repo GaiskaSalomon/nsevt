@@ -103,3 +103,16 @@ requested/successful/failed replicate counts, stopping status, file hashes, and
 reproduction commands. Name the first deposit for a release
 `validation-vX.Y.Z`; a data-only correction becomes `validation-vX.Y.Z-r2`
 without changing the software version.
+
+`tools/validation_campaign.py` produces such an archive:
+
+```bash
+python tools/validation_campaign.py --out validation-vX.Y.Z.json \
+    --shapes -0.3 -0.1 0.1 0.3 --sizes 200 500 1000 --reps 5000 --r-max 60000
+```
+
+It records the package version, git commit, environment and per-cell coverage /
+bias / RMSE with their MCSE and replicate counts; a cell that does not reach
+`--tolerance` is written with `"resolved": false` and reported as unresolved,
+not as a validated number. Pin the environment used with a
+`constraints/science.txt` in the deposit.

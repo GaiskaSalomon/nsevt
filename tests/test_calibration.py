@@ -15,6 +15,7 @@ def _gpd_sample(rng, n, xi=-0.2, sigma=15.0):
 
 
 # -- rejection_rate --------------------------------------------------------
+@pytest.mark.slow
 def test_type_i_of_an_exact_test_is_near_alpha():
     # A p-value drawn uniformly on [0, 1] is an exact test; its rejection rate
     # at alpha must be alpha up to the MCSE.
@@ -31,6 +32,7 @@ def test_type_i_of_an_exact_test_is_near_alpha():
     assert "stopping" in out
 
 
+@pytest.mark.slow
 def test_power_of_a_biased_test_exceeds_its_size():
     # A test that rejects more often under a shifted p-value has higher power.
     def test(sample):
@@ -92,6 +94,7 @@ def test_rejection_rate_rejects_invalid_controls(kwargs):
 
 
 # -- coverage --------------------------------------------------------------
+@pytest.mark.slow
 def test_profile_interval_covers_xi_when_well_specified():
     xi_true = -0.2
 
@@ -110,6 +113,7 @@ def test_profile_interval_covers_xi_when_well_specified():
     assert abs(out["miscalibration"]) < 0.08
 
 
+@pytest.mark.slow
 def test_coverage_accepts_a_callable_target():
     seen = {}
 
@@ -161,6 +165,7 @@ def test_coverage_rejects_invalid_controls(kwargs):
 
 
 # -- bias_rmse -------------------------------------------------------------
+@pytest.mark.slow
 def test_bias_of_the_mle_shape_is_small_when_well_specified():
     xi_true = -0.2
 
@@ -199,6 +204,7 @@ def test_bias_rmse_survives_a_failing_estimator():
 
 
 # -- pseudo_true -----------------------------------------------------------
+@pytest.mark.slow
 def test_pseudo_true_differs_from_nominal_under_rounding():
     # Fitting a continuous GPD to grid-rounded data biases the shape; the
     # pseudo-true value the continuous MLE targets is not the generating xi.

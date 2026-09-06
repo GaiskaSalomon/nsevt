@@ -225,7 +225,7 @@ backward-incompatible change to them will require a 2.0.0. Additions remain mino
 | stable | `nsevt.calibration` | finite-sample type-I/power, coverage, bias/RMSE and pseudo-true target |
 | stable | `nsevt.design` | grouped GPD regression (covariate scale), coefficient profile CI, return levels |
 | stable | `nsevt.transportability` | multi-source robustness and power-aware status |
-| stable with assumptions | `split_conformal` | upper tail bound for exchangeable calibration scores |
+| experimental | `split_conformal` | upper tail bound; finite-sample guarantee only under the documented exchangeability and score-construction assumptions |
 | experimental | `block_conformal` | block-aggregate dependence sensitivity diagnostic |
 | experimental | `twoscale_trend` | residual-bootstrap distribution-valued trend diagnostic |
 | experimental | `wasserstein_decomposition` | numerical quantile-grid energy decomposition |

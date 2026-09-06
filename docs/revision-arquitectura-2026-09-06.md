@@ -569,3 +569,31 @@ print(nsevt.block_bootstrap_trend_ci(z, block, n_boot=40, seed=2))
 Las salidas registradas corresponden al entorno indicado y al commit revisado.
 Tras las correcciones, estos ejemplos deberán cambiar de resultado; preservar
 su objetivo como pruebas de regresión, no congelar las salidas defectuosas.
+
+## 10. Progreso de implementación
+
+Estado a fecha de la última actualización de este documento. Se actualiza con
+cada cambio posterior (H15).
+
+| Hallazgo | Estado | Publicado en |
+| --- | --- | --- |
+| H01 entradas / óptimo factible (grouped) | Corregido + regresión | 1.1.0 |
+| H02 punto de truncación agrupado | Corregido + regresión | 1.1.0 |
+| H03 perfiles agrupados / límites abiertos / nivel | Corregido + regresión | 1.2.0 |
+| H04 bootstrap de tendencia conserva tiempos | Corregido + regresión | 1.2.0 |
+| H05 cota conformal con muestra pequeña | Corregido + regresión | 1.2.0 |
+| H06 réplicas inválidas no convergen | Corregido + regresión | 1.1.0 |
+| H07 incertidumbre de potencia hasta la decisión | Corregido + regresión | 1.2.0 |
+| H08 contratos de calibración coherentes | Corregido + regresión | 1.2.0 |
+| H09 verosimilitud agrupada en logaritmos | Corregido + regresión | 1.2.0 |
+| H10 política única de niveles de retorno | Corregido + regresión | 1.2.0 |
+| H11 tipado del núcleo + contract test | Corregido | 1.2.0 |
+| H12 matriz Python, min-deps, cobertura de ramas, suite rápida, campaña | Corregido (depósito de campaña pendiente) | 1.2.0 |
+| H13 mínimo de setuptools (PEP 639) | Corregido + job `build-min` | 1.2.0 |
+| H14 demo | Pendiente | — |
+| H15 fuente única de estado y planificación | `docs/stability.md` + este cuadro | 1.2.0 |
+| H16 rendimiento y procedencia | Pendiente | — |
+
+Fase 0 (backlog, contrato de fallos, estabilidad experimental, entorno) cerrada
+en `docs/stability.md` y `constraints/ci.txt`. Pendiente de producto (sección 6)
+sin comenzar.

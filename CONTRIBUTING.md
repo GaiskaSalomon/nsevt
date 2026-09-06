@@ -29,7 +29,8 @@ request is closed without merging its commits.
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev,demo]" -c constraints/ci.txt
 ruff check src tests demo
-pytest --cov=nsevt
+pytest -m "not slow"          # fast inner loop; CI runs the whole suite
+pytest --cov=nsevt --cov-branch
 ```
 
 `constraints/ci.txt` pins the lint/type/build tooling (Ruff, mypy, build,

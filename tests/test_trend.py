@@ -162,6 +162,7 @@ def test_emd_interpolation_tolerates_a_nan_power_row():
     assert out is None or np.isfinite(out)
 
 
+@pytest.mark.slow
 def test_multisource_carries_power_mcse():
     def src(trend, seed, xi=-0.25, s0=12.0):
         r = np.random.default_rng(seed)

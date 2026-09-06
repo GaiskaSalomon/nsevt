@@ -4,8 +4,27 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+### Changed
+
+- Fix the declared build-backend floor: PEP 639 (`license` SPDX string,
+  `project.license-files`) needs `setuptools>=77.0.1`, not `>=61.0`. A
+  `build-min` CI job now builds the distributions with exactly that pin so the
+  floor stays honest.
+- Broaden the test matrix and coverage. CI runs Python 3.9 through 3.14 (adds
+  3.10 and 3.12), measures branch coverage (`--cov-branch`), adds a
+  minimum-dependency job on the declared `numpy>=1.22` / `scipy>=1.7` floors,
+  and marks the full-sequential-MC tests `slow` so `pytest -m "not slow"` is a
+  fast inner loop. Add `tools/validation_campaign.py`, which writes a
+  provenance-stamped JSON archive of per-cell coverage / bias / RMSE with their
+  MCSE and replicate counts, marking a cell `"resolved": false` when it does
+  not reach the MCSE tolerance.
+
 ### Documentation
 
+- Reconcile the stability labels: `split_conformal` is listed as experimental
+  (conditional guarantee) in the README, matching `docs/stability.md`. Add an
+  implementation-progress table to the review document and link it from
+  `docs/index.md`.
 - Record the immutable Zenodo DOI assigned to version 1.2.0.
 
 ## [1.2.0] - 2026-09-06

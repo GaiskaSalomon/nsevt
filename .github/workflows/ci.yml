@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.11", "3.13", "3.14"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python ${{ matrix.python-version }}
@@ -37,7 +37,20 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install --upgrade pip
       - run: pip install -e ".[test]"
-      - run: pytest -q --cov=nsevt --cov-report=term --cov-fail-under=80
+      - run: pytest -q --cov=nsevt --cov-branch --cov-report=term --cov-fail-under=80
+
+  min-deps:
+    # the declared floors: numpy>=1.22, scipy>=1.7 on the oldest supported Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.9"
+      - run: python -m pip install --upgrade pip
+      - run: pip install "numpy==1.22.*" "scipy==1.7.*" -e ".[test]"
+      - run: python -c "import numpy, scipy; print(numpy.__version__, scipy.__version__)"
+      - run: pytest -q -m "not slow"
 
   build:
     runs-on: ubuntu-latest
@@ -60,3 +73,25 @@ jobs:
           python -m venv /tmp/nsevt-sdist
           /tmp/nsevt-sdist/bin/pip install dist/*.tar.gz
           /tmp/nsevt-sdist/bin/python tests/smoke_release.py
+
+  build-min:
+    # build the sdist with the declared minimum build backend (PEP 639 needs
+    # setuptools 77.0.1) so the floor in pyproject.toml stays honest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: pip install "setuptools==77.0.1" wheel build twine
+      - run: python -m build --no-isolation
+      - run: python -m twine check dist/*
+      - name: Smoke-install both
+        run: |
+          python -m venv /tmp/nsevt-min-whl
+          /tmp/nsevt-min-whl/bin/pip install dist/*.whl
+          /tmp/nsevt-min-whl/bin/python tests/smoke_release.py
+          python -m venv /tmp/nsevt-min-sdist
+          /tmp/nsevt-min-sdist/bin/pip install dist/*.tar.gz
+          /tmp/nsevt-min-sdist/bin/python tests/smoke_release.py

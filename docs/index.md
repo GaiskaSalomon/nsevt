@@ -8,6 +8,7 @@ and API contract of the current release (see `CHANGELOG.md` for the version).
 - [API guide](api.md)
 - [Return schemas](return-schemas.md)
 - [Validation scope](validation.md)
+- [2026-09-06 review and implementation progress](revision-arquitectura-2026-09-06.md)
 
 Start with the repository [README](../README.md) for installation and a minimal
 worked example. The stable workflow includes continuous and grouped GPD profile

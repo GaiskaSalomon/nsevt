@@ -1,5 +1,8 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+# 77.0.1 is the first installable setuptools that implements PEP 639: the SPDX
+# `license` string and the `project.license-files` key used below (77.0.0 was
+# yanked). Verified to build this project from a clean checkout.
+requires = ["setuptools>=77.0.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -52,6 +55,9 @@ nsevt = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: exercises a full sequential Monte Carlo / power loop; skipped by `pytest -m 'not slow'`",
+]
 
 [tool.ruff]
 target-version = "py39"
