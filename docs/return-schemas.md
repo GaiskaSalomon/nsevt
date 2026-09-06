@@ -102,11 +102,15 @@ an observed boundary.
 
 ### `permutation_pvalue(t_obs, t_null, plus_one=True) -> dict`
 - `p`: plus-one Monte Carlo p-value (never zero); `n_exceed`, `B`.
+- `n_null_dropped`: non-finite entries removed from `t_null`.
 - `floor`: resolution floor `1 / (B + 1)`; `at_floor`: bool.
 - `mcse`: Monte Carlo standard error of `p`.
+- Raises `ValueError` on a non-finite `t_obs` or an empty finite `t_null`.
 
 ### `SequentialRun.summary() -> dict` (also the result of `run_sequential`)
 - `analysis`, `kind`, `R_star`, `estimate`, `mcse`, `tolerance`.
+- `n_attempted` (= `R_star`), `n_effective` (finite outcomes, drive the
+  estimate, MCSE and stopping rule), `n_failed` (non-finite outcomes).
 - `last_batch_change`, `stability_tolerance`, `n_stable_blocks`,
   `min_stable_blocks`, `decision_stable`, `seed`.
 - `status`: `"converged"` or `"not_stabilised"`.
@@ -127,6 +131,8 @@ sequential block.
 
 ### `rejection_rate(test, simulate, n, alpha=0.05, ...) -> dict`
 - `rate`, `mcse`, `alpha`, `n`, `R`, `status`.
+- `n_effective`, `n_failed`: replicates the rate rests on, and replicates whose
+  `test` raised or returned a value that was non-finite or outside `[0, 1]`.
 - `anticonservative`: bool (`rate` more than two MCSE above `alpha`).
 - `stopping`: the `SequentialRun.summary()`.
 

@@ -72,12 +72,24 @@ def rejection_rate(
     run as ``anticonservative`` while the estimated rate sits more than
     ``anticonservative_margin`` above ``alpha``, so the run cannot stop until
     that verdict has settled.
+
+    A replicate whose ``test`` raises, or returns a non-finite value or one
+    outside ``[0, 1]``, is a failed replicate: it is excluded from the rate
+    (rather than silently counted as a non-rejection) and reported in
+    ``n_failed``.  ``n_effective`` is the count the rate and its MCSE rest on;
+    a run with too few effective replicates finishes ``not_stabilised``.
     """
     if not 0 < alpha < 1:
         raise ValueError("alpha must lie strictly between 0 and 1")
 
     def per_replicate(rng: np.random.Generator) -> float:
-        return float(test(simulate(rng, n)) < alpha)
+        try:
+            p = float(test(simulate(rng, n)))
+        except (TypeError, ValueError):
+            return float("nan")
+        if not np.isfinite(p) or not 0.0 <= p <= 1.0:
+            return float("nan")           # invalid p-value: a failed replicate
+        return float(p < alpha)
 
     run = mc.run_sequential(
         tag, _block_draw(seed, tag, per_replicate), kind="proportion",
@@ -92,8 +104,11 @@ def rejection_rate(
         "alpha": alpha,
         "n": int(n),
         "R": run.R,
+        "n_effective": run.n_effective,
+        "n_failed": run.n_failed,
         "status": run.status,
-        "anticonservative": bool(est > alpha + 2 * se),
+        "anticonservative": bool(np.isfinite(est) and np.isfinite(se)
+                                 and est > alpha + 2 * se),
         "stopping": run.summary(),
     }
 

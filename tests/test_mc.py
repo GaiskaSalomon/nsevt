@@ -59,6 +59,17 @@ def test_permutation_pvalue_counts_exceedances():
     assert out["p"] == pytest.approx(4.0 / 6.0)
 
 
+def test_permutation_pvalue_rejects_invalid_inputs():
+    # a non-finite observed statistic silently counted zero exceedances and
+    # reported p at the floor
+    with pytest.raises(ValueError):
+        mc.permutation_pvalue(np.nan, [1.0, 2.0, 3.0])
+    with pytest.raises(ValueError):
+        mc.permutation_pvalue(1.0, [np.nan, np.inf])       # empty finite null
+    out = mc.permutation_pvalue(2.0, [1.0, np.nan, 3.0, 4.0])
+    assert out["B"] == 3 and out["n_null_dropped"] == 1
+
+
 # -- sequential run --------------------------------------------------------
 def test_sequential_run_respects_floor_and_reports_columns():
     rng = np.random.default_rng(0)
@@ -102,6 +113,30 @@ def test_decision_stable_detects_a_flipping_decision():
                                          decisions={"d": True})
                            for r in range(10000, 25001, 2500)]
     assert settled.decision_stable() is True
+
+
+def test_proportion_run_rejects_a_non_binary_outcome():
+    # a constant 2.0 fed to a proportion run used to be clipped by the MCSE
+    # formula and could be reported as a converged estimate of 2.0
+    with pytest.raises(ValueError):
+        mc.run_sequential("bad", lambda k, b: np.full(k, 2.0), kind="proportion",
+                          r0=10, r_min=10, r_max=30, block=10,
+                          min_stable_blocks=1, epsilon=0.2)
+    with pytest.raises(ValueError):
+        mc.SequentialRun("bad", kind="proportion").extend([0.0, 1.0, 0.5])
+
+
+def test_failed_replicates_do_not_pad_the_stopping_count():
+    # 30 attempts but only 3 finite outcomes must not satisfy r_min=10
+    run = mc.SequentialRun("partial", kind="proportion", epsilon=0.2,
+                           r0=10, block=10, r_min=10, r_max=30,
+                           min_stable_blocks=1, tol_stability=1.0)
+    vals = [1.0, 0.0, 1.0] + [np.nan] * 27
+    for start in (0, 10, 20):
+        run.extend(vals[start:start + 10])
+    assert run.finalise() == mc.NOT_STABILISED
+    s = run.summary()
+    assert s["n_attempted"] == 30 and s["n_effective"] == 3 and s["n_failed"] == 27
 
 
 def test_no_decision_rule_run_can_converge():

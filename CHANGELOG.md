@@ -13,6 +13,16 @@ All notable changes are recorded here.
 
 ### Fixed
 
+- Stop the sequential Monte Carlo protocol from declaring an invalid run
+  converged. `SequentialRun` now records failed replicates as `NaN` and stops
+  on `n_effective` (finite outcomes) rather than the attempted count, so a run
+  padded with failures no longer satisfies `r_min`; a `proportion` run rejects
+  any non-0/1 outcome instead of letting the MCSE formula clip it into range;
+  `permutation_pvalue` raises on a non-finite `t_obs` or an empty finite null
+  instead of returning the resolution floor; and `rejection_rate` counts a
+  test that raises or returns an out-of-range p-value as a failed replicate
+  rather than a silent non-rejection. `summary()` and `rejection_rate` now
+  report `n_attempted` / `n_effective` / `n_failed`.
 - Derive the grouped left-truncation point from the threshold and the grid
   instead of assuming the threshold falls on the grid. A mark enters the
   interval-censored sample because it is a grid point above the threshold, so

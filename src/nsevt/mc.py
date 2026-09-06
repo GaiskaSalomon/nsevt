@@ -129,16 +129,27 @@ def permutation_pvalue(
     can be reported as "below the resolution of the experiment" rather than as
     an artificially precise zero.  Set ``plus_one=False`` for the raw
     exceedance fraction (diagnostics only).
+
+    A non-finite ``t_obs`` raises: a comparison against it silently counts zero
+    exceedances and would report ``p`` at the floor.  Non-finite entries of
+    ``t_null`` are dropped and counted in ``n_null_dropped``; an empty null
+    distribution raises.
     """
+    if not np.isfinite(t_obs):
+        raise ValueError("t_obs must be finite")
     t_null = np.asarray(t_null, dtype=float)
+    n_input = int(t_null.size)
     t_null = t_null[np.isfinite(t_null)]
     B = int(t_null.size)
+    if B == 0:
+        raise ValueError("t_null must contain at least one finite value")
     exceed = int(np.sum(t_null >= t_obs))
     p = (1.0 + exceed) / (B + 1.0) if plus_one else exceed / max(B, 1)
     return {
         "p": float(p),
         "n_exceed": exceed,
         "B": B,
+        "n_null_dropped": n_input - B,
         "floor": float(1.0 / (B + 1.0)),
         "at_floor": bool(exceed == 0),
         "mcse": mcse_proportion(p, B),
@@ -189,6 +200,13 @@ class SequentialRun:
     The object stores the raw per-replicate values, so extending a run never
     invalidates the trace already recorded: the checkpoint at ``R = 15000`` is
     exactly the first 15000 values of the run that later reaches ``30000``.
+
+    A ``NaN`` replicate marks a draw that failed to produce a value. It is kept
+    so ``R`` (``n_attempted``) stays honest but excluded from the estimate and
+    its MCSE; ``n_effective`` is the count those rest on, and the stopping rule
+    uses ``n_effective`` so a run padded with failures cannot stop on its
+    attempted count. For ``kind="proportion"`` any other non-0/1 outcome is an
+    invalid observed statistic and :meth:`extend` raises rather than clipping it.
     """
 
     name: str
@@ -235,15 +253,45 @@ class SequentialRun:
             raise ValueError("trace_at must contain positive integers")
 
     # -- accumulation ------------------------------------------------------
+    def _ingest(self, new_values: npt.ArrayLike) -> np.ndarray:
+        """Validate a block of replicate outcomes against the run ``kind``.
+
+        A ``NaN`` marks a replicate that failed to produce a value; it is kept
+        so the attempted count is honest but excluded from the estimate. For a
+        proportion run any other non-0/1 outcome is an invalid observed
+        statistic and raises rather than being clipped into range.
+        """
+        v = np.asarray(new_values, dtype=float).ravel()
+        if self.kind == "proportion":
+            bad = np.isfinite(v) & (v != 0.0) & (v != 1.0)
+            if np.any(bad):
+                raise ValueError(
+                    "proportion replicate outcomes must be 0, 1 or nan; got "
+                    f"{float(v[bad][0])!r}"
+                )
+        return v
+
     def extend(self, new_values: npt.ArrayLike) -> SequentialRun:
         """Add a block of replicate outcomes and record a checkpoint."""
-        self.values.extend(np.asarray(new_values, dtype=float).ravel().tolist())
+        self.values.extend(self._ingest(new_values).tolist())
         self._checkpoint()
         return self
 
     @property
     def R(self) -> int:
+        """Replicates attempted (finite outcomes plus recorded failures)."""
         return len(self.values)
+
+    @property
+    def n_effective(self) -> int:
+        """Replicates that produced a finite outcome and drive the estimate."""
+        v = np.asarray(self.values, dtype=float)
+        return int(np.count_nonzero(np.isfinite(v)))
+
+    @property
+    def n_failed(self) -> int:
+        """Attempted replicates that returned a non-finite outcome."""
+        return self.R - self.n_effective
 
     def _estimate(self, upto: Optional[int] = None) -> tuple[float, float]:
         v = np.asarray(self.values[:upto] if upto else self.values, dtype=float)
@@ -287,9 +335,13 @@ class SequentialRun:
         return all(cp.decisions == first for cp in window[1:])
 
     def should_stop(self) -> bool:
-        if self.R < max(self.r0, self.r_min):
+        # the floor and the MCSE are counted in replicates that produced a
+        # value, so a run padded with failures cannot stop on its attempted count
+        if self.n_effective < max(self.r0, self.r_min):
             return False
-        _, se = self._estimate()
+        est, se = self._estimate()
+        if not (np.isfinite(est) and np.isfinite(se)):
+            return False
         return (se <= self.epsilon
                 and self.stable_blocks() >= self.min_stable_blocks
                 and self.decision_stable())
@@ -358,6 +410,9 @@ class SequentialRun:
             "analysis": self.name,
             "kind": self.kind,
             "R_star": int(self.R),
+            "n_attempted": int(self.R),
+            "n_effective": int(self.n_effective),
+            "n_failed": int(self.n_failed),
             "estimate": est,
             "mcse": se,
             "tolerance": self.epsilon,

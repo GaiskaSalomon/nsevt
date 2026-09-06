@@ -49,6 +49,23 @@ def test_rejection_rate_rejects_bad_alpha():
                            n=1, alpha=1.5)
 
 
+def test_rejection_rate_treats_invalid_pvalues_as_failures():
+    ctrl = dict(r0=10, r_min=10, r_max=30, block=10, min_stable_blocks=1,
+                epsilon=0.2)
+    # a test that only ever returns NaN used to give rate 0.0 and converge
+    out = cal.rejection_rate(lambda s: np.nan, lambda r, n: None, n=3, **ctrl)
+    assert out["status"] == nsevt.mc.NOT_STABILISED
+    assert out["n_failed"] == out["stopping"]["n_attempted"]
+    assert out["n_effective"] == 0 and not np.isfinite(out["rate"])
+
+    # a test that raises is a failed replicate, not a silent non-rejection
+    def boom(sample):
+        raise ValueError("estimator blew up")
+
+    out = cal.rejection_rate(boom, lambda r, n: r.uniform(size=n), n=1, **ctrl)
+    assert out["n_failed"] > 0 and out["status"] == nsevt.mc.NOT_STABILISED
+
+
 # -- coverage --------------------------------------------------------------
 def test_profile_interval_covers_xi_when_well_specified():
     xi_true = -0.2
