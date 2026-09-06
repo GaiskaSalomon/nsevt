@@ -71,6 +71,14 @@ Carlo errors. It is an approximate sensitivity interval, not a joint bootstrap:
 it does not model covariance across effect sizes induced by common random
 numbers.
 
+Each power estimate is reported at full precision with a Jeffreys-stabilised
+MCSE (positive even at 0% or 100%) and its replicate counts
+(`n_rep`/`n_successful`/`n_failed`). A power crossing is `..._resolved` only
+when the target is still reached with every estimate pulled down two MCSE;
+otherwise it should be read as unresolved at the current replicate budget. Rows
+whose replicates all failed carry a non-finite `power` and are dropped from the
+interpolation.
+
 ## Multi-source robustness
 
 Sources should be genuinely distinct products with comparable variables,
@@ -80,7 +88,10 @@ non-overlapping eras does not create independent sources.
 Cross-source agreement is not causal confirmation. Disagreement is not proof of
 an instrumental artifact. The returned status distinguishes reproducibility,
 opposite direction, adequate-power non-reproduction, unresolved evidence, and
-absence of a reference signal.
+absence of a reference signal. `not_reproduced_with_power` requires the
+simulated power for the signed reference effect to clear `power_threshold` by
+two MCSE (`power_mcse_for_reference` is reported); a power that only sits near
+the threshold leaves the comparison `not_resolved` rather than deciding it.
 
 ## Sequential Monte Carlo precision (`nsevt.mc`)
 

@@ -32,6 +32,7 @@ class SourceResult:
     trend_significant: bool
     trend_direction: str
     power_for_reference: Optional[float] = None
+    power_mcse_for_reference: Optional[float] = None
 
     @property
     def bounded(self) -> bool:
@@ -167,6 +168,7 @@ def multisource_robustness(
                 seed=seed,
             )
             row.power_for_reference = curve[0]["power"]
+            row.power_mcse_for_reference = curve[0]["power_mcse"]
 
     shape_all = all(row.bounded_supported for row in results)
     if not reference_result.trend_significant:
@@ -194,16 +196,24 @@ def multisource_robustness(
             trend_text = "the signed trend is significant in the same direction in every source"
         else:
             unresolved = [row for row in nonreference if not row.trend_significant]
+
+            def _power_resolved_above(row) -> bool:
+                # require the power to clear the threshold by two MCSE, so a
+                # value that only sits near it does not decide the verdict
+                if row.power_for_reference is None:
+                    return False
+                se = row.power_mcse_for_reference or 0.0
+                return row.power_for_reference - 2.0 * se >= power_threshold
+
             adequate = bool(unresolved) and all(
-                row.power_for_reference is not None
-                and row.power_for_reference >= power_threshold
-                for row in unresolved
+                _power_resolved_above(row) for row in unresolved
             )
             if check_power and adequate:
                 trend_status = "not_reproduced_with_power"
                 trend_text = (
                     "the trend is absent in at least one source with simulated power "
-                    f">= {power_threshold:.0%} for the signed reference effect"
+                    f"resolvably >= {power_threshold:.0%} (>= two MCSE clear) for the "
+                    "signed reference effect"
                 )
             else:
                 trend_status = "not_resolved"

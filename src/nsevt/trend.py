@@ -251,14 +251,19 @@ def trend_power(
             successful += 1
             rejected += max(0.0, 2.0 * (fc[1] - fv[1])) >= crit
         power = rejected / successful if successful else np.nan
-        mcse = np.sqrt(power * (1.0 - power) / successful) if successful else np.nan
+        # Jeffreys-stabilised so a run of 0% or 100% rejections still reports a
+        # positive simulation error; keep full precision (rounding a power or its
+        # MCSE before MDE / robustness consume it can flip a threshold decision).
+        mcse = mcse_proportion(power, successful) if successful else np.nan
         out.append(
             {
                 "trend_per_decade": float(trend),
                 "sigma_change_pct": round(100.0 * (np.exp(trend * span) - 1.0), 1),
-                "power": round(float(power), 3),
-                "power_mcse": round(float(mcse), 4),
-                "n_successful": successful,
+                "power": float(power),
+                "power_mcse": float(mcse),
+                "n_rep": int(n_rep),
+                "n_successful": int(successful),
+                "n_failed": int(n_rep - successful),
             }
         )
     return out
@@ -275,6 +280,8 @@ def _pchip_root(x, y, target):
 
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
+    finite = np.isfinite(x) & np.isfinite(y)     # drop rows with a failed power
+    x, y = x[finite], y[finite]
     order = np.argsort(x)
     x, y = x[order], y[order]
     y = np.maximum.accumulate(y)          # enforce monotonicity in the mesh
@@ -299,25 +306,37 @@ def _emd_interp(curve, sign, target, rng, reps):
     The crossing is resampled by perturbing each power estimate within its
     simulation standard error.  This pointwise approximation does not model the
     covariance induced when the power curve uses common random numbers.
+
+    Returns ``(root, diagnostics)`` with ``diagnostics`` carrying ``ci`` (the
+    sensitivity interval, ``None`` when it cannot be formed), ``resolved`` (the
+    target is still reached with every power estimate pulled down two MCSE, so
+    the crossing is not an artefact of simulation noise) and
+    ``reps_without_crossing`` (perturbed curves that never reached ``target``).
     """
-    rows = [r for r in curve if np.sign(r["trend_per_decade"]) == sign]
+    empty = {"ci": None, "resolved": False, "reps_without_crossing": reps}
+    rows = [r for r in curve
+            if np.sign(r["trend_per_decade"]) == sign and np.isfinite(r["power"])]
     if len(rows) < 2:
-        return None, None
+        return None, empty
     x = np.array([abs(r["trend_per_decade"]) for r in rows])
     y = np.array([r["power"] for r in rows])
     se = np.array([r.get("power_mcse", 0.0) for r in rows])
     root = _pchip_root(x, y, target)
     if root is None:
-        return None, None
-    draws = []
+        return None, empty
+    resolved = _pchip_root(x, np.clip(y - 2.0 * se, 0.0, 1.0), target) is not None
+    draws, misses = [], 0
     for _ in range(reps):
         yj = np.clip(y + rng.standard_normal(y.size) * se, 0.0, 1.0)
         rj = _pchip_root(x, yj, target)
-        if rj is not None:
+        if rj is None:
+            misses += 1
+        else:
             draws.append(sign * rj)
     ci = ([float(np.percentile(draws, 2.5)), float(np.percentile(draws, 97.5))]
-          if draws else None)
-    return float(sign * root), ci
+          if len(draws) >= 2 else None)
+    return float(sign * root), {"ci": ci, "resolved": bool(resolved),
+                                "reps_without_crossing": int(misses)}
 
 
 def min_detectable_effect(
@@ -388,10 +407,11 @@ def min_detectable_effect(
     mde = min(available, key=abs) if available else None
 
     rng_u = np.random.default_rng(seed + 7919)
-    emd_neg, emd_neg_ci = _emd_interp(curve, -1, target_power, rng_u, emd_uncertainty_reps)
-    emd_pos, emd_pos_ci = _emd_interp(curve, 1, target_power, rng_u, emd_uncertainty_reps)
+    emd_neg, diag_neg = _emd_interp(curve, -1, target_power, rng_u, emd_uncertainty_reps)
+    emd_pos, diag_pos = _emd_interp(curve, 1, target_power, rng_u, emd_uncertainty_reps)
     emd_available = [e for e in (emd_neg, emd_pos) if e is not None]
     emd = min(emd_available, key=abs) if emd_available else None
+    n_power_failed = int(sum(row["n_failed"] for row in curve))
     return {
         "mde_per_decade": mde,
         "mde_absolute": abs(mde) if mde is not None else None,
@@ -400,10 +420,15 @@ def min_detectable_effect(
         "emd_per_decade": emd,
         "emd_negative": emd_neg,
         "emd_positive": emd_pos,
-        "emd_negative_ci95": emd_neg_ci,
-        "emd_positive_ci95": emd_pos_ci,
+        "emd_negative_ci95": diag_neg["ci"],
+        "emd_positive_ci95": diag_pos["ci"],
+        "emd_negative_resolved": diag_neg["resolved"],
+        "emd_positive_resolved": diag_pos["resolved"],
+        "emd_negative_reps_without_crossing": diag_neg["reps_without_crossing"],
+        "emd_positive_reps_without_crossing": diag_pos["reps_without_crossing"],
         "direction": direction,
         "target_power": target_power,
+        "n_power_failed": n_power_failed,
         "power_curve": curve,
     }
 

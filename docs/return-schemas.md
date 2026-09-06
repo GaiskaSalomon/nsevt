@@ -82,8 +82,10 @@ Property: `bounded_supported`. Method: `summary() -> str`.
 - `_null`: internal null-statistic array (not part of the contract).
 
 ### `trend_power(z, block, trends, ...) -> list[dict]`
-One row per trend: `{"trend_per_decade", "sigma_change_pct", "power",
-"power_mcse", "n_successful"}`.
+One row per trend: `{"trend_per_decade", "sigma_change_pct" (display, rounded),
+"power", "power_mcse", "n_rep", "n_successful", "n_failed"}`. `power` and
+`power_mcse` are full precision (not rounded); `power_mcse` is the
+Jeffreys-stabilised proportion MCSE, so it is positive even at 0% or 100%.
 
 ### `min_detectable_effect(z, block, ...) -> dict`
 - Grid-based: `mde_per_decade`, `mde_absolute`, `mde_negative`, `mde_positive`.
@@ -91,7 +93,14 @@ One row per trend: `{"trend_per_decade", "sigma_change_pct", "power",
   Monte Carlo interval `emd_negative_ci95` / `emd_positive_ci95` (`[lo, hi]` or
   `None`). The interval is a pointwise-normal approximation; it does not model
   covariance across curve points generated with common random numbers.
-- `direction`, `target_power`, and `power_curve` (a `trend_power` list).
+- `emd_negative_resolved` / `emd_positive_resolved`: bool — the target is still
+  reached with every power estimate pulled down two MCSE (the crossing is not an
+  artefact of simulation noise).
+- `emd_negative_reps_without_crossing` / `emd_positive_reps_without_crossing`:
+  perturbed power curves that never reached the target.
+- `n_power_failed`: total failed replicates across the power curve.
+- `direction`, `target_power`, and `power_curve` (a `trend_power` list). Rows
+  with a non-finite `power` are dropped from the interpolation.
 
 ### `block_bootstrap_trend_ci(z, block, n_boot=1000, seed=..., ...) -> dict`
 `{"ci95": [lo, hi] (or [None, None]), "n_boot": int, "n_boot_requested": int,
@@ -196,11 +205,14 @@ any entry is strictly below the domain (`m * rate < 1`).
 trend_reproduces, reference_source, trend_status, verdict`.
 Method: `table() -> str`. `trend_status` is one of `reproduced`,
 `inconsistent_direction`, `not_reproduced_with_power`, `not_resolved`,
-`no_reference_signal`, `single_source_only`.
+`no_reference_signal`, `single_source_only`. `not_reproduced_with_power`
+requires every non-significant source to clear `power_threshold` by two MCSE;
+a power that only sits near the threshold falls to `not_resolved`.
 
 `SourceResult` fields: `name, n, xi, xi_ci95, bounded_estimate,
 bounded_supported, endpoint, trend_per_decade, p_permutation,
-trend_significant, trend_direction, power_for_reference`. Property: `bounded`.
+trend_significant, trend_direction, power_for_reference,
+power_mcse_for_reference`. Property: `bounded`.
 
 The name `transportability` is a backward-compatible alias of
 `multisource_robustness`.

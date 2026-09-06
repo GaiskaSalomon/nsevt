@@ -16,6 +16,19 @@ All notable changes are recorded here.
 
 ### Fixed
 
+- Carry the simulation uncertainty of a power estimate through to the decision
+  that uses it. `trend_power` now reports `power` and `power_mcse` at full
+  precision (they were rounded to 3 and 4 places before `min_detectable_effect`
+  and `multisource_robustness` consumed them) and computes `power_mcse` with the
+  Jeffreys-stabilised proportion formula, so a run of 0% or 100% rejections
+  still reports a positive error; rows also carry `n_rep`/`n_failed`.
+  `min_detectable_effect` drops non-finite power rows from the interpolation and
+  adds `emd_*_resolved` (the crossing survives pulling every estimate down two
+  MCSE), `emd_*_reps_without_crossing` and `n_power_failed`.
+  `multisource_robustness` requires a non-significant source to clear
+  `power_threshold` by two MCSE before it is classified
+  `not_reproduced_with_power` (otherwise `not_resolved`), and reports
+  `power_mcse_for_reference` on each `SourceResult`.
 - Make `nsevt.calibration` decisions and failure handling consistent.
   `rejection_rate` now uses one threshold (`alpha + anticonservative_margin`,
   returned as `anticonservative_threshold`) for both the stopping rule and the

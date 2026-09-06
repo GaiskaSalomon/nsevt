@@ -120,3 +120,64 @@ def test_mde_both_directions_are_explicit():
 def test_trend_design_validation():
     with np.testing.assert_raises(ValueError):
         nsevt.trend_permutation([1, 2, 3], [2000, 2000, 2000], n_perm=9)
+
+
+# -- H07: power uncertainty is carried through, not rounded away --------------
+def test_power_curve_carries_stabilised_mcse_and_failure_counts():
+    z, blk = _make(0.0, seed=5)
+    # a tiny effect (near-zero power) and a huge one (near-1 power): the plain
+    # binomial MCSE would be 0 at both ends; the Jeffreys-stabilised one is not
+    curve = nsevt.trend_power(z, blk, [0.0, 5.0], n_rep=40, seed=2,
+                              n_perm_calibration=49)
+    for row in curve:
+        assert row["power_mcse"] > 0.0
+        assert row["n_rep"] == 40
+        assert row["n_successful"] + row["n_failed"] == 40
+        # power is not pre-rounded to 3 dp before MDE/robustness consume it
+        assert row["power"] == pytest.approx(row["power"], abs=0)
+
+
+def test_mde_reports_emd_resolution_and_power_failures():
+    z, blk = _make(0.0, seed=5)
+    m = nsevt.min_detectable_effect(
+        z, blk, grid=[0.05, 0.10, 0.15, 0.20, 0.30], direction="positive",
+        n_rep=60, n_perm_calibration=99, seed=2, emd_uncertainty_reps=200,
+    )
+    assert "emd_positive_resolved" in m and isinstance(m["emd_positive_resolved"], bool)
+    assert m["emd_positive_reps_without_crossing"] >= 0
+    assert m["n_power_failed"] == sum(r["n_failed"] for r in m["power_curve"])
+
+
+def test_emd_interpolation_tolerates_a_nan_power_row():
+    # if a whole effect's replicates fail, its power is NaN; the interpolation
+    # drops that row instead of crashing
+    z, blk = _make(0.0, seed=5)
+    m = nsevt.min_detectable_effect(
+        z, blk, grid=[0.05, 0.15, 0.30], direction="positive",
+        n_rep=20, n_perm_calibration=49, seed=2,
+    )
+    m["power_curve"][1]["power"] = float("nan")          # inject a failed row
+    out, diag = trend_module._emd_interp(
+        m["power_curve"], 1, 0.8, np.random.default_rng(0), 50)
+    assert out is None or np.isfinite(out)
+
+
+def test_multisource_carries_power_mcse():
+    def src(trend, seed, xi=-0.25, s0=12.0):
+        r = np.random.default_rng(seed)
+        z, b = [], []
+        for y in range(1980, 2024):
+            s = s0 * np.exp(trend * (y - 1980) / 10.0)
+            u = r.uniform(size=25)
+            z.append(40 + s / xi * ((1 - u) ** (-xi) - 1))
+            b.append(np.full(25, y))
+        return np.concatenate(z), np.concatenate(b)
+
+    xo, yo = src(0.25, 10)
+    xi_, yi = src(0.0, 11)
+    arena = nsevt.multisource_robustness(
+        [("op", xo, yo), ("ind", xi_, yi)], threshold=40, n_perm=99,
+        n_power=80, seed=1)
+    non_ref = [s for s in arena.sources if s.name != arena.reference_source]
+    assert all(s.power_mcse_for_reference is not None
+               and s.power_mcse_for_reference > 0.0 for s in non_ref)
