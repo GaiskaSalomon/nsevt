@@ -11,6 +11,16 @@ All notable changes are recorded here.
 - Update the checkout and Python setup actions to their audited Node.js 24
   revisions after full-matrix validation.
 
+### Fixed
+
+- Reject non-finite input to the grouped GPD fit before it reaches the
+  optimizer. A NaN or infinite grid width, a non-finite threshold, or a
+  malformed user-supplied `cells` triple now raises `ValueError` instead of
+  letting the Nelder-Mead search "converge" on the constant penalty region and
+  return that penalty as a fit. `fit_gpd_grouped` also raises `RuntimeError`
+  when no start reaches a feasible optimum, so a penalty objective value is
+  never reported as a log-likelihood.
+
 ### Documentation
 
 - Record the immutable Zenodo DOI assigned to version 1.0.3.

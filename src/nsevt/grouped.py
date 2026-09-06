@@ -29,6 +29,12 @@ import numpy.typing as npt
 from scipy.optimize import minimize, minimize_scalar
 from scipy.stats import chi2
 
+#: Finite value returned by the grouped negative log-likelihood on an infeasible
+#: parameter (non-positive scale, support violated, an underflowed cell). A fit
+#: whose best objective is not strictly below this never left the penalty region
+#: and must be reported as a failure rather than accepted.
+_PENALTY = 1e10
+
 
 def _gpd_surv(z: np.ndarray, xi: float, sigma: float) -> np.ndarray:
     """GPD survival ``(1 + xi z / sigma)^(-1/xi)``, zero past the endpoint."""
@@ -61,9 +67,13 @@ def interval_cells(
     m = np.asarray(values, dtype=float)
     if m.ndim != 1:
         raise ValueError("values must be a 1-D array")
+    if m.size and np.any(~np.isfinite(m)):
+        raise ValueError("values must be finite")
+    if not np.isfinite(threshold):
+        raise ValueError("threshold must be finite")
     grid_arr = np.atleast_1d(np.asarray(grid, dtype=float))
-    if grid_arr.size == 0 or np.any(grid_arr <= 0):
-        raise ValueError("grid widths must be positive")
+    if grid_arr.size == 0 or np.any(~np.isfinite(grid_arr)) or np.any(grid_arr <= 0):
+        raise ValueError("grid widths must be positive and finite")
     grids = tuple(float(g) for g in grid_arr)
     half = np.full(m.size, min(grids) / 2.0)
     for g in sorted(grids):
@@ -76,6 +86,21 @@ def interval_cells(
     return a, b, trunc
 
 
+def _validate_cells(cells: tuple, n: int) -> tuple:
+    """Check a user-supplied ``(a, b, trunc)`` triple before it reaches the fit."""
+    if not isinstance(cells, (tuple, list)) or len(cells) != 3:
+        raise ValueError("cells must be an (a, b, trunc) triple")
+    out = tuple(np.asarray(c, dtype=float) for c in cells)
+    if any(c.ndim != 1 or c.size != n for c in out):
+        raise ValueError("each cells array must be 1-D and aligned with the exceedances")
+    if any(np.any(~np.isfinite(c)) for c in out):
+        raise ValueError("cells must contain only finite values")
+    a, b, trunc = out
+    if np.any(a < 0) or np.any(b <= a) or np.any(trunc < 0) or np.any(trunc > b):
+        raise ValueError("cells must satisfy 0 <= a < b and 0 <= trunc <= b")
+    return out
+
+
 def _grouped_nll(par, a, b, trunc):
     """Stationary grouped negative log-likelihood in ``(xi, log sigma)``."""
     xi = par[0]
@@ -83,18 +108,18 @@ def _grouped_nll(par, a, b, trunc):
         xi = 1e-10 if xi >= 0 else -1e-10
     sigma = np.exp(par[1])
     if not np.isfinite(sigma) or sigma <= 0:
-        return 1e10
+        return _PENALTY
     if np.any(1.0 + xi * a / sigma <= 0):
-        return 1e10
+        return _PENALTY
     cell = _gpd_surv(a, xi, sigma) - _gpd_surv(b, xi, sigma)
     if np.any(~np.isfinite(cell)) or np.any(cell <= 1e-300):
-        return 1e10
+        return _PENALTY
     ll = float(np.sum(np.log(cell)))
     trunc = np.asarray(trunc, dtype=float)
     if np.any(trunc > 0):
         surv = _gpd_surv(trunc, xi, sigma)
         if np.any(surv <= 1e-300):
-            return 1e10
+            return _PENALTY
         ll -= float(np.sum(np.log(surv)))
     return -ll
 
@@ -115,11 +140,15 @@ def fit_gpd_grouped(
     values = np.asarray(values, dtype=float)
     if values.ndim != 1 or np.any(~np.isfinite(values)):
         raise ValueError("values must be a finite 1-D array")
+    if not np.isfinite(threshold):
+        raise ValueError("threshold must be finite")
     z = values[values > threshold] - float(threshold)
     if z.size < 3:
         raise ValueError(f"only {z.size} exceedances over u={threshold}; need >= 3")
     if cells is None:
         cells = interval_cells(values[values > threshold], threshold, grid)
+    else:
+        cells = _validate_cells(cells, z.size)
     a, b, trunc = cells
     best = (np.inf, None)
     for x0 in np.asarray(starts, dtype=float):
@@ -132,6 +161,12 @@ def fit_gpd_grouped(
             best = (float(r.fun), r.x)
     if best[1] is None:
         raise RuntimeError("grouped GPD maximum-likelihood optimization failed")
+    if best[0] >= _PENALTY:
+        raise RuntimeError(
+            "grouped GPD fit did not reach a feasible optimum: the likelihood "
+            "stayed in the penalty region (invalid scale, support violation or "
+            "an underflowed cell probability) from every start"
+        )
     xi, sigma = float(best[1][0]), float(np.exp(best[1][1]))
     endpoint = float(threshold) - sigma / xi if xi < 0 else np.inf
     return {"xi": xi, "sigma": sigma, "endpoint": endpoint, "loglik": -best[0],

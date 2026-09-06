@@ -34,10 +34,14 @@ Methods: `return_level(return_period, rate=None) -> float`, `summary() -> str`.
 
 ### `interval_cells(values, threshold, grid=5.0, tol=1e-6) -> tuple`
 `(a, b, trunc)` arrays on the excess scale (cell lower/upper edge and
-per-observation left-truncation point).
+per-observation left-truncation point). Raises `ValueError` on non-finite
+values, a non-finite threshold, or a non-finite/non-positive grid width.
 
 ### `fit_gpd_grouped(values, threshold, grid=5.0, cells=None, starts=...) -> dict`
-`{"xi", "sigma", "endpoint", "loglik", "n"}`.
+`{"xi", "sigma", "endpoint", "loglik", "n"}`. A user-supplied `cells` triple is
+validated (`ValueError` unless finite, aligned with the exceedances, and
+`0 <= a < b`, `0 <= trunc <= b`). `RuntimeError` when no start reaches a
+feasible optimum, so a penalty objective is never reported as a fit.
 
 ### `profile_ci_xi_grouped(...) -> dict`
 `{"xi_hat", "ci": (lo, hi), "lo_at_bound": bool, "hi_at_bound": bool, "level"}`.

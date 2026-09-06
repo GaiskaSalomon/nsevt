@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 
 import nsevt
+from nsevt import grouped
 from nsevt.grouped import interval_cells
 
 
@@ -68,3 +69,48 @@ def test_gpd_pot_grouped_summary_and_fields():
 def test_grouped_requires_enough_exceedances():
     with pytest.raises(ValueError):
         nsevt.gpd_pot_grouped(np.array([41.0, 42.0]), threshold=40.0, grid=5.0)
+
+
+# -- H01: invalid input and infeasible optima are never returned as a fit ------
+def test_fit_gpd_grouped_rejects_nonfinite_grid():
+    # a NaN grid width used to reach the optimizer, which "converged" on the
+    # constant penalty region and returned xi=-0.4, loglik=-1e10 as a fit
+    with pytest.raises(ValueError):
+        nsevt.fit_gpd_grouped([45.0, 50.0, 55.0], 40.0, grid=np.nan)
+
+
+def test_fit_gpd_grouped_rejects_nonfinite_threshold():
+    with pytest.raises(ValueError):
+        nsevt.fit_gpd_grouped([45.0, 50.0, 55.0], np.inf)
+
+
+def test_interval_cells_rejects_nonfinite_inputs():
+    with pytest.raises(ValueError):
+        interval_cells([45.0, np.nan, 55.0], threshold=40.0, grid=5.0)
+    with pytest.raises(ValueError):
+        interval_cells([45.0, 50.0, 55.0], threshold=40.0, grid=np.inf)
+
+
+def test_fit_gpd_grouped_validates_user_supplied_cells():
+    with pytest.raises(ValueError):
+        nsevt.fit_gpd_grouped(
+            [45.0, 50.0, 55.0], 40.0,
+            cells=(np.array([5.0, 6.0, 7.0]),      # upper edge below lower edge
+                   np.array([1.0, 2.0, 3.0]),
+                   np.array([0.5, 0.5, 0.5])),
+        )
+    with pytest.raises(ValueError):
+        nsevt.fit_gpd_grouped(
+            [45.0, 50.0, 55.0], 40.0,
+            cells=(np.array([2.5, 7.5]), np.array([7.5, 12.5]),  # wrong length
+                   np.array([2.5, 2.5])),
+        )
+
+
+def test_fit_gpd_grouped_reports_penalty_optimum_as_failure(monkeypatch):
+    # if every likelihood evaluation stays in the penalty region the run is a
+    # failure, not a fit whose objective is the penalty constant
+    monkeypatch.setattr(grouped, "_grouped_nll",
+                        lambda *args, **kwargs: grouped._PENALTY)
+    with pytest.raises(RuntimeError):
+        nsevt.fit_gpd_grouped([45.0, 50.0, 55.0], 40.0)
