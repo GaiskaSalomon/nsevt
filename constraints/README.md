@@ -5,8 +5,8 @@ ranges in `pyproject.toml` (which stay deliberately wide).
 
 ## `ci.txt`
 
-The development and CI tooling that the `main`-branch quality gate depends on:
-Ruff, mypy, pytest, pytest-cov, coverage, build, twine. Install with
+Pins the tooling whose pass/fail verdict depends on its version: Ruff, mypy,
+build, twine. Install with
 
 ```bash
 pip install -e ".[dev,demo]" -c constraints/ci.txt
@@ -21,8 +21,11 @@ mypy src/nsevt
 pytest -q --cov=nsevt --cov-report=term-missing --cov-fail-under=80
 ```
 
-matches CI. It does not pin NumPy/SciPy: the library supports a range and each
-supported Python resolves a compatible build.
+matches CI. It is applied on CI only in the single-Python `lint` and
+`build`/release jobs. It is **not** applied to the multi-version `test` matrix
+(pytest 9 has no Python 3.9 build, and a coverage number does not depend on the
+pytest patch version), and it does not pin NumPy/SciPy — the library supports a
+range and each supported Python resolves a compatible build.
 
 ## `science.txt` (not present yet)
 

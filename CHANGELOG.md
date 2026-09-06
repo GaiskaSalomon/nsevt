@@ -6,12 +6,13 @@ All notable changes are recorded here.
 
 ### Changed
 
-- Pin the development and CI tooling (Ruff, mypy, pytest, pytest-cov, coverage,
-  build, twine) in `constraints/ci.txt` and apply it in every workflow and in
-  the documented local gate, so a developer machine and CI reach the same lint,
-  type and coverage verdicts. NumPy and SciPy are left to each interpreter's
-  resolver; an exact runtime pin for a simulation campaign is reserved for a
-  separate `constraints/science.txt`.
+- Pin the lint/type/build tooling (Ruff, mypy, build, twine) in
+  `constraints/ci.txt` and apply it in the single-Python `lint` and
+  `build`/release jobs and the documented local gate, so a developer machine
+  and CI reach the same lint and type verdicts. The multi-version `test` matrix
+  and NumPy/SciPy stay unpinned (each interpreter resolves a compatible build;
+  pytest 9 has no Python 3.9 distribution); an exact runtime pin for a
+  simulation campaign is reserved for a separate `constraints/science.txt`.
 
 ### Documentation
 

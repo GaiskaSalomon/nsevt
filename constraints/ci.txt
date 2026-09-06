@@ -1,24 +1,26 @@
-# Pinned development and CI tooling for a reproducible quality gate.
+# Pinned lint / type / build tooling for a reproducible quality gate.
 #
-# Use it whenever you run the gate that `main` is held to:
+# Applied on the single-Python jobs whose *verdict* depends on the tool
+# version -- `lint` (Ruff rule set, mypy) and `build`/release (build, twine) --
+# and in the documented local gate:
 #
 #     pip install -e ".[dev,demo]" -c constraints/ci.txt
 #
-# It pins the tools whose output is compared against a threshold (a lint rule
-# set, a type-checker verdict, a coverage number), so a developer machine and
-# CI reach the same result. It deliberately does NOT pin NumPy or SciPy: the
-# library supports a range (see `pyproject.toml`) and every supported Python
-# resolves its own compatible build. An exact runtime pin for a scientific
-# simulation campaign belongs in a separate `constraints/science.txt` deposited
-# with that campaign's data, not here.
+# It is deliberately NOT applied to the multi-version `test` matrix: pytest 9
+# has no distribution for Python 3.9, and pinning a single runner version there
+# would break the oldest supported interpreter. The test matrix installs a
+# per-interpreter compatible pytest instead; a coverage number does not depend
+# on the pytest patch version, a Ruff verdict does.
+#
+# NumPy and SciPy are also left unpinned: the library supports a range (see
+# `pyproject.toml`) and every supported Python resolves its own compatible
+# build. An exact runtime pin for a scientific simulation campaign belongs in a
+# separate `constraints/science.txt` deposited with that campaign's data.
 #
 # This is not a full transitive lock; regenerate the pins below from the
 # versions a clean `pip install -e ".[dev]"` resolves when bumping the gate.
 
 ruff==0.16.6
 mypy==2.3.1
-pytest==9.1.1
-pytest-cov==7.1.0
-coverage==7.16.0
 build==1.4.3
 twine==7.0.0

@@ -32,9 +32,9 @@ ruff check src tests demo
 pytest --cov=nsevt
 ```
 
-`constraints/ci.txt` pins the tooling (Ruff, mypy, pytest, coverage, build,
-twine) to the versions CI uses, so a local gate matches `main`. See
-[`constraints/README.md`](constraints/README.md).
+`constraints/ci.txt` pins the lint/type/build tooling (Ruff, mypy, build,
+twine) to the versions CI's single-Python jobs use, so a local gate matches
+`main`. See [`constraints/README.md`](constraints/README.md).
 
 ## Change requirements
 
