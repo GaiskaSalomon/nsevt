@@ -4,6 +4,8 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-06
+
 ### Changed
 
 - Strengthen the type gate. mypy now runs with `check_untyped_defs` (the body

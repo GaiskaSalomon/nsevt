@@ -21,7 +21,7 @@ authors:
     given-names: "Elí Gaiska"
     orcid: "https://orcid.org/0000-0002-3533-3900"
     affiliation: "Colegio de Postgraduados, Campus Montecillo"
-version: "1.1.0"
+version: "1.2.0"
 date-released: "2026-09-06"
 doi: "10.5281/zenodo.21858232"
 license: MIT
