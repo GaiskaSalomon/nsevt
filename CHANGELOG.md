@@ -13,6 +13,13 @@ All notable changes are recorded here.
 
 ### Fixed
 
+- Derive the grouped left-truncation point from the threshold and the grid
+  instead of assuming the threshold falls on the grid. A mark enters the
+  interval-censored sample because it is a grid point above the threshold, so
+  the conditioned excess is the lower rounding edge of the smallest such mark,
+  not half the grid width. With a shifted threshold the old assumption made the
+  conditioning denominator too small and a cell's conditional probability could
+  exceed one; aligned thresholds are unaffected.
 - Reject non-finite input to the grouped GPD fit before it reaches the
   optimizer. A NaN or infinite grid width, a non-finite threshold, or a
   malformed user-supplied `cells` triple now raises `ValueError` instead of

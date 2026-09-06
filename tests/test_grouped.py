@@ -24,6 +24,19 @@ def test_interval_cells_single_grid():
     assert np.allclose(trunc, 2.5)
 
 
+def test_interval_cells_shifted_threshold_keeps_conditional_probability_valid():
+    # threshold 42 is not on the 5-unit grid; the first admissible mark is 45
+    # with lower rounding edge 42.5, so the conditioned excess is 0.5, not g/2.
+    a, b, trunc = interval_cells([45.0, 50.0], threshold=42.0, grid=5.0)
+    assert np.allclose(trunc, 0.5)
+    # unit-scale exponential tail: P(cell | excess >= trunc) must lie in [0, 1]
+    ratio = (np.exp(-a) - np.exp(-b)) / np.exp(-trunc)
+    assert np.all((ratio >= 0.0) & (ratio <= 1.0))
+    # aligned thresholds are unchanged: the truncation is still g/2
+    _, _, trunc_aligned = interval_cells([45.0, 50.0], threshold=40.0, grid=5.0)
+    assert np.allclose(trunc_aligned, 2.5)
+
+
 def test_interval_cells_mixed_precision():
     # 50 is a multiple of 5 (coarse cell), 48 is only a multiple of 1 (fine cell)
     a, b, trunc = interval_cells(np.array([50.0, 48.0]), threshold=40.0, grid=(5.0, 1.0))

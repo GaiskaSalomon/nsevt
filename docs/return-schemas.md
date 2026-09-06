@@ -34,8 +34,10 @@ Methods: `return_level(return_period, rate=None) -> float`, `summary() -> str`.
 
 ### `interval_cells(values, threshold, grid=5.0, tol=1e-6) -> tuple`
 `(a, b, trunc)` arrays on the excess scale (cell lower/upper edge and
-per-observation left-truncation point). Raises `ValueError` on non-finite
-values, a non-finite threshold, or a non-finite/non-positive grid width.
+left-truncation point). `trunc` is the excess of the lower rounding edge of the
+smallest grid point strictly above the threshold (``g/2`` when the threshold is
+on the grid, smaller otherwise). Raises `ValueError` on non-finite values, a
+non-finite threshold, or a non-finite/non-positive grid width.
 
 ### `fit_gpd_grouped(values, threshold, grid=5.0, cells=None, starts=...) -> dict`
 `{"xi", "sigma", "endpoint", "loglik", "n"}`. A user-supplied `cells` triple is

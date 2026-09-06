@@ -57,10 +57,13 @@ def interval_cells(
     each value is assigned the *coarsest* grid it lies on (a value that is a
     multiple of 5 is also a multiple of 1, and the coarser cell is kept).
 
-    A value enters the sample because its *recorded* mark exceeded the threshold,
-    so the smallest true excess that could have produced it is ``g/2``; this is
-    returned as the per-observation left-truncation point, which the likelihood
-    conditions on.
+    A value enters the sample because its *recorded* mark is a grid point
+    strictly above the threshold. The event the likelihood conditions on is
+    therefore "the true excess is at least the lower rounding edge of the
+    smallest admissible mark", ``max(ceil-grid(threshold) - g/2 - threshold, 0)``,
+    returned as ``trunc``. When the threshold sits on the grid this equals
+    ``g/2``; when it does not, assuming ``g/2`` conditions on too large an excess
+    and can drive a cell's conditional probability above one.
 
     Returns ``(a, b, trunc)`` arrays on the excess scale.
     """
@@ -82,7 +85,14 @@ def interval_cells(
     z = m - float(threshold)
     a = np.maximum(z - half, 0.0)
     b = z + half
-    trunc = half
+    # Left-truncation is the excess of the lower rounding edge of the smallest
+    # grid point strictly above the threshold, at each observation's precision.
+    # With an aligned threshold this is g/2 (the previous assumption); with a
+    # shifted threshold it is smaller, and using g/2 there made the conditioning
+    # denominator too small so a cell probability could exceed one.
+    step = 2.0 * half
+    first_mark = (np.floor(float(threshold) / step + tol) + 1.0) * step
+    trunc = np.maximum(first_mark - half - float(threshold), 0.0)
     return a, b, trunc
 
 
