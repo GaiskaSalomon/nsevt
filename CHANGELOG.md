@@ -4,6 +4,8 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-06
+
 ### Changed
 
 - Update artifact transfer actions to audited Node.js 24 revisions, removing
