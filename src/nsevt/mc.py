@@ -33,6 +33,8 @@ from typing import Callable, Optional
 import numpy as np
 import numpy.typing as npt
 
+from ._types import PermutationPValue
+
 #: Convergence statuses reported by :meth:`SequentialRun.finalise`.
 CONVERGED = "converged"
 NOT_STABILISED = "not_stabilised"
@@ -120,7 +122,7 @@ def required_replicates(p_hat: float, epsilon: float) -> int:
 # --------------------------------------------------------------------------
 def permutation_pvalue(
     t_obs: float, t_null: npt.ArrayLike, plus_one: bool = True
-) -> dict:
+) -> PermutationPValue:
     """Monte Carlo p-value with the plus-one correction.
 
     ``p = (1 + #{T_b >= T_obs}) / (B + 1)``.  ``p = 0`` is never returned: when

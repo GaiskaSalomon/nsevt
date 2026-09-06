@@ -29,6 +29,8 @@ import numpy.typing as npt
 from scipy.optimize import minimize, minimize_scalar
 from scipy.stats import chi2
 
+from ._types import GPDGroupedFitDict, GroupedEndpointCI, GroupedShapeCI
+
 #: Finite value returned by the grouped negative log-likelihood on an infeasible
 #: parameter (non-positive scale, support violated, an underflowed cell). A fit
 #: whose best objective is not strictly below this never left the penalty region
@@ -46,10 +48,12 @@ def _log_gpd_surv(z: np.ndarray, xi: float, sigma) -> np.ndarray:
     """
     z = np.asarray(z, dtype=float)
     sigma = np.asarray(sigma, dtype=float)
-    if abs(float(xi)) < 1e-8:
-        return -z / sigma
-    t = xi * z / sigma
-    with np.errstate(invalid="ignore", divide="ignore"):
+    # the optimiser transiently visits extreme scales; a non-finite intermediate
+    # there is expected and handled by the caller's feasibility checks
+    with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+        if abs(float(xi)) < 1e-8:
+            return -z / sigma
+        t = xi * z / sigma
         return np.where(t > -1.0, -np.log1p(t) / xi, -np.inf)
 
 
@@ -174,7 +178,7 @@ def fit_gpd_grouped(
     grid: float | npt.ArrayLike = 5.0,
     cells: tuple | None = None,
     starts: npt.ArrayLike = (-0.4, -0.25, -0.1, 0.05),
-) -> dict:
+) -> GPDGroupedFitDict:
     """Interval-censored GPD maximum-likelihood fit above ``threshold``.
 
     ``cells`` accepts the ``(a, b, trunc)`` triple from :func:`interval_cells`;
@@ -218,9 +222,16 @@ def fit_gpd_grouped(
 
 
 def profile_ci_xi_grouped(
-    values, threshold, grid=5.0, cells=None, level=0.95,
-    n_bisect=40, xi_floor=-0.999, xi_ceil=5.0, fit=None,
-) -> dict:
+    values: npt.ArrayLike,
+    threshold: float,
+    grid: float | npt.ArrayLike = 5.0,
+    cells: tuple | None = None,
+    level: float = 0.95,
+    n_bisect: int = 40,
+    xi_floor: float = -0.999,
+    xi_ceil: float = 5.0,
+    fit: GPDGroupedFitDict | None = None,
+) -> GroupedShapeCI:
     """Profile-likelihood interval for the shape under the grouped likelihood.
 
     Inverts the one-degree-of-freedom likelihood-ratio statistic,
@@ -308,9 +319,16 @@ def _grouped_nll_nu(xi, nu, a, b, trunc):
 
 
 def profile_endpoint_ci(
-    values, threshold, grid=5.0, cells=None, level=0.95, n_bisect=40,
-    gap_init=50.0, gap_cap=1.0e7, fit=None,
-) -> dict:
+    values: npt.ArrayLike,
+    threshold: float,
+    grid: float | npt.ArrayLike = 5.0,
+    cells: tuple | None = None,
+    level: float = 0.95,
+    n_bisect: int = 40,
+    gap_init: float = 50.0,
+    gap_cap: float = 1.0e7,
+    fit: GPDGroupedFitDict | None = None,
+) -> GroupedEndpointCI:
     """Profile-likelihood interval for the finite endpoint ``M*`` itself.
 
     Makes the endpoint a parameter (``nu`` on the excess scale) and profiles the

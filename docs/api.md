@@ -124,4 +124,7 @@ All randomized public functions accept an explicit seed. See function
 docstrings for argument-level validation and returned fields,
 [`return-schemas.md`](return-schemas.md) for the full return contract of the
 stable core, and [`stability.md`](stability.md) for the authoritative list of
-which symbols the semantic-versioning guarantee covers.
+which symbols the semantic-versioning guarantee covers. `nsevt._types` provides
+`TypedDict` hints for the main return dictionaries; they do not change the
+runtime `dict` return, but a typed client that reads a wrong key is caught by a
+type checker.

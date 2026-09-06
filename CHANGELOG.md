@@ -6,6 +6,16 @@ All notable changes are recorded here.
 
 ### Changed
 
+- Strengthen the type gate. mypy now runs with `check_untyped_defs` (the body
+  of an unannotated function is checked, not skipped) and `nsevt.conformal` is
+  no longer exempt, so the whole package is type-checked. Add `nsevt._types`
+  with `TypedDict` schemas for the main stable-core return dictionaries
+  (`permutation_pvalue`, the grouped profile functions, the calibration
+  functions, `trend_power` rows, `fit_gpd_grouped`) and annotate those return
+  types and the previously-unannotated grouped profile signatures; the runtime
+  still returns plain `dict`. Add `tests/test_api_contracts.py`, which asserts
+  the frozen 1.x dataclass fields, dict keys, and name aliases are still
+  present.
 - Pin the lint/type/build tooling (Ruff, mypy, build, twine) in
   `constraints/ci.txt` and apply it in the single-Python `lint` and
   `build`/release jobs and the documented local gate, so a developer machine

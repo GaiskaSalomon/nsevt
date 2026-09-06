@@ -67,7 +67,9 @@ bump.
 | `nsevt.conformal` | `block_conformal` | Block-aggregation diagnostic for ordered dependent exceedances. No general finite-sample or beta-mixing guarantee. |
 | `nsevt.twoscale` | `twoscale_trend`, `wasserstein_decomposition`, `TwoScaleResult` | Residual circular moving-block bootstrap diagnostic for empirical quantile functions. Guarantees not established. |
 
-`nsevt.conformal` is also exempt from the mypy gate (`[tool.mypy]` override).
+The whole package (experimental modules included) is checked by mypy with
+`check_untyped_defs`, and `nsevt._types` carries `TypedDict` schemas for the
+stable-core return dictionaries.
 
 ## Notes
 

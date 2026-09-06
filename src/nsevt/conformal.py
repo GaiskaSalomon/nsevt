@@ -56,22 +56,26 @@ class ConformalBand:
         return float(np.mean(x_new <= upper))
 
 
-def _validate_inputs(x, threshold, alpha):
-    x = np.asarray(x, dtype=float)
-    if x.ndim != 1 or np.any(~np.isfinite(x)):
+def _validate_inputs(
+    x: npt.ArrayLike, threshold: float, alpha: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    xa = np.asarray(x, dtype=float)
+    if xa.ndim != 1 or np.any(~np.isfinite(xa)):
         raise ValueError("x must be a finite 1-D array")
     if not np.isfinite(threshold):
         raise ValueError("threshold must be finite")
     if not 0 < alpha < 1:
         raise ValueError("alpha must lie strictly between 0 and 1")
-    mask = x > threshold
-    z = x[mask] - threshold
+    mask = xa > threshold
+    z = xa[mask] - threshold
     if z.size < 4:
         raise ValueError(f"only {z.size} exceedances; need >= 4 for calibration")
-    return x, mask, z
+    return xa, mask, z
 
 
-def _standardized_scores(z, mask, x_shape, scale):
+def _standardized_scores(
+    z: np.ndarray, mask: np.ndarray, x_shape: tuple, scale: object
+) -> np.ndarray:
     if scale is None:
         sigma = fit_gpd(z)["sigma"]
         return z / sigma
@@ -89,7 +93,7 @@ def _standardized_scores(z, mask, x_shape, scale):
     return z / selected
 
 
-def _conformal_upper(scores: npt.ArrayLike, alpha: float) -> tuple:
+def _conformal_upper(scores: npt.ArrayLike, alpha: float) -> tuple[float, bool]:
     """One-sided split-conformal upper score and an ``underpowered`` flag.
 
     The bound is the ``ceil((1 - alpha)(m + 1))``-th smallest calibration score,
@@ -107,7 +111,9 @@ def _conformal_upper(scores: npt.ArrayLike, alpha: float) -> tuple:
     return float(s[rank - 1]), False
 
 
-def _blocks(n: int, block_length: Optional[int], n_blocks: Optional[int]):
+def _blocks(
+    n: int, block_length: Optional[int], n_blocks: Optional[int]
+) -> list[tuple[int, int]]:
     if block_length is not None and n_blocks is not None:
         raise ValueError("specify block_length or n_blocks, not both")
     if block_length is not None and (
@@ -121,6 +127,7 @@ def _blocks(n: int, block_length: Optional[int], n_blocks: Optional[int]):
     if block_length is None and n_blocks is None:
         block_length = max(2, int(round(n**0.5)))
     if block_length is None:
+        assert n_blocks is not None           # the both-None case is handled above
         block_length = max(1, int(np.ceil(n / n_blocks)))
     return [(a, min(a + block_length, n)) for a in range(0, n, block_length)]
 
@@ -141,15 +148,15 @@ def block_conformal(
     exposed for dependence sensitivity analysis and is not part of nsevt's
     stable inferential core.
     """
-    x, mask, z = _validate_inputs(x, threshold, alpha)
-    scores = _standardized_scores(z, mask, x.shape, scale)
+    xa, mask, z = _validate_inputs(x, threshold, alpha)
+    scores = _standardized_scores(z, mask, xa.shape, scale)
     if order is not None:
-        order = np.asarray(order)
-        if order.shape == x.shape:
-            order = order[mask]
-        if order.shape != z.shape:
+        order_arr = np.asarray(order)
+        if order_arr.shape == xa.shape:
+            order_arr = order_arr[mask]
+        if order_arr.shape != z.shape:
             raise ValueError("order must match x or its exceedances")
-        scores = scores[np.argsort(order, kind="stable")]
+        scores = scores[np.argsort(order_arr, kind="stable")]
 
     blocks = _blocks(len(scores), block_length, n_blocks)
     aggregates = np.array(
@@ -187,8 +194,8 @@ def split_conformal(
     the finite-sample guarantee instead of returning the sample maximum, whose
     coverage is only ``n / (n + 1)``.
     """
-    x, mask, z = _validate_inputs(x, threshold, alpha)
-    scores = _standardized_scores(z, mask, x.shape, scale)
+    xa, mask, z = _validate_inputs(x, threshold, alpha)
+    scores = _standardized_scores(z, mask, xa.shape, scale)
     n = len(scores)
     q, underpowered = _conformal_upper(scores, alpha)
     return ConformalBand(

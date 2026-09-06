@@ -37,6 +37,7 @@ from typing import Callable
 import numpy as np
 
 from . import mc
+from ._types import BiasRMSE, Coverage, PseudoTrue, RejectionRate
 
 Sample = object
 Simulate = Callable[[np.random.Generator, int], Sample]
@@ -70,7 +71,7 @@ def rejection_rate(
     tag: str = "rejection_rate",
     anticonservative_margin: float = 0.005,
     **seq_kwargs,
-) -> dict:
+) -> RejectionRate:
     """Empirical rejection probability of ``test`` at level ``alpha``.
 
     ``test(sample)`` must return a p-value; the test rejects when ``p < alpha``.
@@ -137,7 +138,7 @@ def coverage(
     epsilon: float = 0.0025,
     tag: str = "coverage",
     **seq_kwargs,
-) -> dict:
+) -> Coverage:
     """Empirical probability that ``estimator`` covers ``target``.
 
     ``estimator(sample)`` must return an interval ``(lo, hi)``.  ``target`` is
@@ -204,7 +205,7 @@ def bias_rmse(
     n_rep: int = 5000,
     seed: int = 20260814,
     tag: str = "bias_rmse",
-) -> dict:
+) -> BiasRMSE:
     """Bias, standard deviation and RMSE of a point ``estimator``.
 
     ``estimator(sample)`` must return a scalar.  ``truth`` is the value the
@@ -261,7 +262,7 @@ def pseudo_true(
     R: int = 20000,
     seed: int = 20260814,
     tag: str = "pseudo_true",
-) -> dict:
+) -> PseudoTrue:
     """Large-sample simulation proxy for an estimator's pseudo-true target.
 
     When the DGP is misspecified for the estimator's model (discretisation, a

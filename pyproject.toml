@@ -63,9 +63,4 @@ ignore = ["E501", "UP035", "UP045"]
 
 [tool.mypy]
 ignore_missing_imports = true          # scipy / numpy ship partial stubs
-
-# The stable core is type-checked; the experimental conformal module (outside
-# the public-API stability guarantee) is exempt from the type gate.
-[[tool.mypy.overrides]]
-module = "nsevt.conformal"
-ignore_errors = true
+check_untyped_defs = true              # also check the body of unannotated defs

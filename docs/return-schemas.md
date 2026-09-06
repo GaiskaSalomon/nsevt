@@ -6,6 +6,9 @@ This is the return contract of the stable public API (`nsevt.gpd`,
 **removing or renaming** a documented key or field is a
 breaking change (2.0.0); **adding** keys or fields is a minor change (1.x).
 Keys beginning with an underscore are internal and not part of the contract.
+`nsevt._types` carries `TypedDict` hints for several of these (the runtime
+return is still a plain `dict`); `tests/test_api_contracts.py` locks the key
+sets against regressions.
 
 ## GPD (`nsevt.gpd`)
 

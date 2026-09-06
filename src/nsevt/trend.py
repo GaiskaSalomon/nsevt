@@ -18,6 +18,7 @@ import numpy.typing as npt
 from scipy.optimize import minimize
 from scipy.stats import chi2
 
+from ._types import PowerRow
 from .mc import mcse_proportion
 
 _XI0 = (-0.4, -0.25, -0.1, 0.05, 0.2)
@@ -181,7 +182,7 @@ def trend_power(
     ref_block: Optional[float] = None,
     n_perm_calibration: int = 499,
     alpha: float = 0.05,
-) -> list:
+) -> list[PowerRow]:
     """Estimate power for signed log-scale trends at the observed design.
 
     Simulations hold the number and temporal layout of excesses fixed.  Thus
@@ -221,7 +222,7 @@ def trend_power(
         raise ValueError("xi_true must exceed -0.999 and crit must be non-negative")
 
     t_mean = float(np.mean(t))
-    out = []
+    out: list[PowerRow] = []
     for trend in trends:
         # Common random numbers make signed effect comparisons less noisy.
         rng = np.random.default_rng(seed)
@@ -255,17 +256,16 @@ def trend_power(
         # positive simulation error; keep full precision (rounding a power or its
         # MCSE before MDE / robustness consume it can flip a threshold decision).
         mcse = mcse_proportion(power, successful) if successful else np.nan
-        out.append(
-            {
-                "trend_per_decade": float(trend),
-                "sigma_change_pct": round(100.0 * (np.exp(trend * span) - 1.0), 1),
-                "power": float(power),
-                "power_mcse": float(mcse),
-                "n_rep": int(n_rep),
-                "n_successful": int(successful),
-                "n_failed": int(n_rep - successful),
-            }
-        )
+        row: PowerRow = {
+            "trend_per_decade": float(trend),
+            "sigma_change_pct": round(100.0 * (np.exp(trend * span) - 1.0), 1),
+            "power": float(power),
+            "power_mcse": float(mcse),
+            "n_rep": int(n_rep),
+            "n_successful": int(successful),
+            "n_failed": int(n_rep - successful),
+        }
+        out.append(row)
     return out
 
 
