@@ -129,7 +129,10 @@ threshold or the exceedance rate.
 or beta-mixing guarantee is claimed for this implementation. `split_conformal`
 has the usual marginal guarantee only when calibration and future scores are
 exchangeable and the score construction, including scale fitting, is fixed
-independently of calibration.
+independently of calibration. When the calibration sample is too small for the
+requested `alpha` (`ceil((1 - alpha)(m + 1)) > m`) the one-sided bound is `+inf`
+(`ConformalBand.underpowered` is `True`); it is not clipped to the sample
+maximum, whose coverage would be only `m / (m + 1)`.
 
 `twoscale_trend` is a residual circular moving-block bootstrap diagnostic for
 empirical quantile functions. Its p-value depends on residual stationarity and

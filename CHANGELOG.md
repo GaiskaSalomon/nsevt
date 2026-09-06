@@ -13,6 +13,13 @@ All notable changes are recorded here.
 
 ### Fixed
 
+- Return an infinite one-sided bound from `split_conformal` / `block_conformal`
+  when the calibration sample is too small for the requested `alpha`
+  (`ceil((1 - alpha)(m + 1)) > m`). The quantile level was clipped to one and
+  the sample maximum returned, whose coverage is only `m / (m + 1)` (0.80 for
+  `n=4, alpha=0.1`, not 0.90). `q_standardized` is now `inf` with
+  `ConformalBand.underpowered = True`, and the finite-`n` bound is the exact
+  `ceil((1 - alpha)(m + 1))`-th order statistic.
 - Keep the time labels in `block_bootstrap_trend_ci`. Each resample reassigned
   its sampled blocks to fresh ordered time positions, which mixed scale levels
   from different years and pulled every interval toward zero: a fit of

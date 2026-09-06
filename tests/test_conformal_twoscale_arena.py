@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 import nsevt
 
@@ -22,6 +23,38 @@ def test_split_and_block_both_run():
     assert b.q_standardized > 0 and s.q_standardized > 0
     assert b.n_blocks >= 2 and s.n_blocks == 1
     assert b.experimental and not s.experimental
+
+
+def test_split_conformal_small_sample_returns_infinite_bound():
+    # ceil((1 - 0.1)(4 + 1)) = 5 > 4: the (n+1)-th order statistic does not
+    # exist, so the only valid one-sided bound is +inf, not the sample maximum
+    band = nsevt.split_conformal([1.0, 2.0, 3.0, 4.0], 0.0, alpha=0.1, scale=1.0)
+    assert band.underpowered is True
+    assert not np.isfinite(band.q_standardized)
+    assert not np.isfinite(band.predict_upper(1.0))
+    assert band.coverage([1.5, 2.5, 3.9], 1.0) == 1.0        # covers vacuously
+    # a looser alpha on the same n is finite again (rank 3 <= 4)
+    ok = nsevt.split_conformal([1.0, 2.0, 3.0, 4.0], 0.0, alpha=0.5, scale=1.0)
+    assert ok.underpowered is False and np.isfinite(ok.q_standardized)
+
+
+def test_split_conformal_uses_the_exact_conformal_order_statistic():
+    rng = np.random.default_rng(0)
+    x = 40.0 + rng.exponential(9.0, size=200)
+    band = nsevt.split_conformal(x, 40.0, alpha=0.1)
+    z = np.sort(x[x > 40.0] - 40.0)
+    sigma = nsevt.fit_gpd(z)["sigma"]
+    rank = int(np.ceil(0.9 * (z.size + 1)))
+    assert band.q_standardized == pytest.approx(z[rank - 1] / sigma)
+    assert band.underpowered is False
+
+
+def test_block_conformal_flags_underpowered_block_count():
+    rng = np.random.default_rng(3)
+    x = 40.0 + rng.exponential(5.0, size=60)
+    band = nsevt.block_conformal(x, 40.0, alpha=0.05, n_blocks=3)
+    # ceil(0.95 * 4) = 4 > 3 blocks
+    assert band.underpowered is True and not np.isfinite(band.q_standardized)
 
 
 def test_conformal_coverage_rejects_excess_scale_input():

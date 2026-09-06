@@ -31,6 +31,10 @@ class ConformalBand:
     n_blocks: int
     block_length: int
     experimental: bool = False
+    underpowered: bool = False
+    """``True`` when the calibration sample is too small for a finite one-sided
+    bound at this ``alpha`` (``ceil((1 - alpha)(m + 1)) > m``); ``q_standardized``
+    is then ``inf`` and the bound covers vacuously."""
 
     def predict_upper(self, scale: float) -> float:
         """Return ``u + q * sigma`` for a positive finite scale."""
@@ -85,6 +89,24 @@ def _standardized_scores(z, mask, x_shape, scale):
     return z / selected
 
 
+def _conformal_upper(scores: npt.ArrayLike, alpha: float) -> tuple:
+    """One-sided split-conformal upper score and an ``underpowered`` flag.
+
+    The bound is the ``ceil((1 - alpha)(m + 1))``-th smallest calibration score,
+    so ``P(Y_new <= bound) >= ceil((1 - alpha)(m + 1)) / (m + 1) >= 1 - alpha``.
+    When that rank exceeds ``m`` the required order statistic does not exist and
+    the only valid finite-sample bound is ``+inf`` (returned with the flag set),
+    rather than clipping the quantile level to one and returning the sample
+    maximum, whose coverage is only ``m / (m + 1)``.
+    """
+    s = np.sort(np.asarray(scores, dtype=float))
+    m = s.size
+    rank = int(np.ceil((1.0 - alpha) * (m + 1)))
+    if rank > m:
+        return float("inf"), True
+    return float(s[rank - 1]), False
+
+
 def _blocks(n: int, block_length: Optional[int], n_blocks: Optional[int]):
     if block_length is not None and n_blocks is not None:
         raise ValueError("specify block_length or n_blocks, not both")
@@ -135,8 +157,7 @@ def block_conformal(
     )
     if aggregates.size < 2:
         raise ValueError("need >= 2 calibration blocks; reduce block_length")
-    level = min(1.0, np.ceil((1 - alpha) * (aggregates.size + 1)) / aggregates.size)
-    q = float(np.quantile(aggregates, level, method="higher"))
+    q, underpowered = _conformal_upper(aggregates, alpha)
     return ConformalBand(
         threshold=float(threshold),
         alpha=float(alpha),
@@ -145,6 +166,7 @@ def block_conformal(
         n_blocks=int(aggregates.size),
         block_length=int(blocks[0][1] - blocks[0][0]),
         experimental=True,
+        underpowered=underpowered,
     )
 
 
@@ -158,12 +180,17 @@ def split_conformal(
     ``scale=None``, nsevt estimates a common GPD scale on the same observations;
     that convenience mode is model-assisted and does not retain the exact
     distribution-free split guarantee.
+
+    With too few calibration scores for the requested ``alpha``
+    (``ceil((1 - alpha)(n + 1)) > n``) the one-sided bound is ``+inf``:
+    ``q_standardized`` is ``inf`` and ``underpowered`` is ``True``. This keeps
+    the finite-sample guarantee instead of returning the sample maximum, whose
+    coverage is only ``n / (n + 1)``.
     """
     x, mask, z = _validate_inputs(x, threshold, alpha)
     scores = _standardized_scores(z, mask, x.shape, scale)
     n = len(scores)
-    level = min(1.0, np.ceil((1 - alpha) * (n + 1)) / n)
-    q = float(np.quantile(scores, level, method="higher"))
+    q, underpowered = _conformal_upper(scores, alpha)
     return ConformalBand(
         threshold=float(threshold),
         alpha=float(alpha),
@@ -172,4 +199,5 @@ def split_conformal(
         n_blocks=1,
         block_length=n,
         experimental=False,
+        underpowered=underpowered,
     )
