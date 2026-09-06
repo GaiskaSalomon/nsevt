@@ -415,37 +415,49 @@ def block_bootstrap_trend_ci(
     seed: int = 20260722,
     ref_block: Optional[float] = None,
 ) -> dict:
-    """Descriptive percentile interval from a pairs block bootstrap.
+    """Descriptive percentile interval from a cluster (pairs) block bootstrap.
 
-    Complete observed blocks are sampled with replacement and assigned to the
-    corresponding ordered bootstrap positions.  This complements rather than
-    replaces the block-label permutation test.
+    Complete observed blocks are sampled with replacement, **each keeping its own
+    time label**, and the linear trend in GPD log-scale is refitted on the
+    resample.  (Reassigning the sampled blocks to fresh ordered time positions
+    would scramble the level/time pairing and pull every interval toward zero.)
+    A resample whose sampled blocks span fewer than two distinct times, or whose
+    excesses do not vary, carries no trend information and is skipped;
+    ``n_unidentified`` and ``n_failed`` report how many, and ``ci95`` is
+    ``[None, None]`` when fewer than two usable resamples remain.  This
+    complements rather than replaces the block-label permutation test.
     """
     z, block = _validate_design(z, block)
     if not isinstance(n_boot, (int, np.integer)) or n_boot < 1:
         raise ValueError("n_boot must be a positive integer")
     blocks = np.unique(block)
     by_block = {b: np.flatnonzero(block == b) for b in blocks}
-    ordered_times = np.sort(blocks)
     rng = np.random.default_rng(seed)
-    draws = []
+    draws: list = []
+    n_unidentified = n_failed = 0
     for _ in range(n_boot):
         sampled = rng.choice(blocks, size=len(blocks), replace=True)
-        z_parts, t_parts = [], []
-        for target_time, source_block in zip(ordered_times, sampled):
-            idx = by_block[source_block]
-            z_parts.append(z[idx])
-            t_parts.append(np.full(idx.size, target_time))
-        zb = np.concatenate(z_parts)
-        tb = np.concatenate(t_parts)
+        if np.unique(sampled).size < 2:
+            n_unidentified += 1
+            continue
+        idx = np.concatenate([by_block[b] for b in sampled])
+        zb = z[idx]
+        tb = np.concatenate([np.full(by_block[b].size, b) for b in sampled])
+        if np.ptp(zb) == 0:
+            n_unidentified += 1
+            continue
         try:
             par, _ = _fit_ns(zb, _decades(tb, ref_block), True)
         except RuntimeError:
+            n_failed += 1
             continue
         draws.append(float(par[2]))
-    if not draws:
-        return {"ci95": [None, None], "n_boot": 0}
+    ci = ([float(np.percentile(draws, 2.5)), float(np.percentile(draws, 97.5))]
+          if len(draws) >= 2 else [None, None])
     return {
-        "ci95": [float(np.percentile(draws, 2.5)), float(np.percentile(draws, 97.5))],
+        "ci95": ci,
         "n_boot": len(draws),
+        "n_boot_requested": int(n_boot),
+        "n_unidentified": int(n_unidentified),
+        "n_failed": int(n_failed),
     }

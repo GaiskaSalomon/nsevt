@@ -13,6 +13,14 @@ All notable changes are recorded here.
 
 ### Fixed
 
+- Keep the time labels in `block_bootstrap_trend_ci`. Each resample reassigned
+  its sampled blocks to fresh ordered time positions, which mixed scale levels
+  from different years and pulled every interval toward zero: a fit of
+  `+0.265`/decade returned a bootstrap interval of `[-0.10, 0.08]`. The
+  resample now keeps each block's own time (a cluster bootstrap); resamples
+  spanning fewer than two distinct times carry no trend information and are
+  reported in `n_unidentified` / `n_failed` rather than silently dropped or
+  fitted. The result adds `n_boot_requested`, `n_unidentified`, `n_failed`.
 - Make the grouped shape and endpoint profile intervals consistent with the
   fit they describe. `profile_ci_xi_grouped` searches outward from `xi_hat`
   instead of inverting a fixed `[-0.95, 0.60]` bracket, so the interval always

@@ -92,7 +92,11 @@ One row per trend: `{"trend_per_decade", "sigma_change_pct", "power",
 - `direction`, `target_power`, and `power_curve` (a `trend_power` list).
 
 ### `block_bootstrap_trend_ci(z, block, n_boot=1000, seed=..., ...) -> dict`
-`{"ci95": [lo, hi] (or [None, None]), "n_boot": int}`.
+`{"ci95": [lo, hi] (or [None, None]), "n_boot": int, "n_boot_requested": int,
+"n_unidentified": int, "n_failed": int}`. Cluster bootstrap: whole blocks are
+resampled keeping their own time label; resamples spanning fewer than two
+distinct times (or with no variation) are counted in `n_unidentified`, refit
+failures in `n_failed`, and `n_boot` is the usable count the interval rests on.
 
 ## Sequential Monte Carlo precision (`nsevt.mc`)
 

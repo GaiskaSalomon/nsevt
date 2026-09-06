@@ -87,6 +87,27 @@ def test_block_bootstrap_ci_contains_estimate_direction():
     assert ci[0] is not None and ci[1] >= ci[0]
 
 
+def test_block_bootstrap_keeps_the_trend_it_measures():
+    # resampled blocks keep their own time, so a strong trend is not pulled to
+    # zero the way relabelling to ordered positions did
+    z, blk = _make(0.30, seed=6)
+    point = nsevt.trend_permutation(z, blk, n_perm=9, seed=2)["trend_per_decade"]
+    out = nsevt.block_bootstrap_trend_ci(z, blk, n_boot=60, seed=2)
+    lo, hi = out["ci95"]
+    assert lo > 0.0 and lo <= point <= hi
+    assert out["n_unidentified"] == 0 and out["n_failed"] == 0
+    assert out["n_boot_requested"] == 60
+
+
+def test_block_bootstrap_reports_unidentifiable_resamples():
+    # two blocks only: many resamples draw a single distinct time and cannot
+    # inform a trend; they are counted, not silently dropped or fitted
+    z, blk = _make(0.1, years=range(2000, 2002), n_per_year=40, seed=1)
+    out = nsevt.block_bootstrap_trend_ci(z, blk, n_boot=50, seed=0)
+    assert out["n_unidentified"] > 0
+    assert out["n_unidentified"] + out["n_failed"] + out["n_boot"] == 50
+
+
 def test_mde_both_directions_are_explicit():
     z, blk = _make(0.0, n_per_year=8, years=range(2000, 2015), seed=8)
     m = nsevt.min_detectable_effect(
