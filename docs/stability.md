@@ -52,7 +52,15 @@ Additions since `1.0.0` (all minor, backward compatible): `n_attempted`,
 `n_null_dropped` in `permutation_pvalue`; `n_boot_requested`, `n_unidentified`,
 `n_failed` in `block_bootstrap_trend_ci`; `lower_at_bound` in
 `profile_endpoint_ci`; `level`, `xi_ci`, `endpoint_ci`, `xi_ci_at_bound`,
-`endpoint_ci_at_bound` on `GroupedGPDFit`; `underpowered` on `ConformalBand`.
+`endpoint_ci_at_bound` on `GroupedGPDFit`; `underpowered` on `ConformalBand`;
+`upper_search_limit`, `upper_bracket_expansions` in `profile_endpoint_ci`
+(1.2.2).
+
+Known breach: versions 1.1.0 to 1.2.1 removed the keyword arguments `gap_max`
+(`profile_endpoint_ci`) and `lo_limit` / `hi_limit` (`profile_ci_xi_grouped`)
+without a major version. Results were not affected, but 1.0.x code passing
+them failed with `TypeError`. Version 1.2.2 restored them as permanent aliases
+of `gap_init`, `xi_floor` and `xi_ceil`.
 
 ## Experimental
 

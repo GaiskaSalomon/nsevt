@@ -11,6 +11,13 @@ All notable changes are recorded here.
   cells instead of claiming that it removes the bias, in the README and the
   module docstring.
 - Fix a line break that rendered as "regression- checked".
+- Record a breach of the stability policy. Versions 1.1.0 to 1.2.1 removed
+  keyword arguments of stable functions without a major version:
+  `gap_max` from `profile_endpoint_ci` and `lo_limit` / `hi_limit` from
+  `profile_ci_xi_grouped`, so 1.0.x code that passed them raised
+  `TypeError`. Results were not affected. Version 1.2.2 restored the three
+  names as aliases of `gap_init`, `xi_floor` and `xi_ceil`; use 1.2.2 or
+  later, or 1.0.x, for such code.
 
 ## [1.2.2] - 2026-10-02
 
