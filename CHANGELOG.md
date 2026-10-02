@@ -4,6 +4,14 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+### Documentation
+
+- Record the immutable Zenodo DOI assigned to version 1.2.2.
+- State that the grouped fit accounts for rounding under correctly specified
+  cells instead of claiming that it removes the bias, in the README and the
+  module docstring.
+- Fix a line break that rendered as "regression- checked".
+
 ## [1.2.2] - 2026-10-02
 
 Numerical results are identical to 1.2.1.

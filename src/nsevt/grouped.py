@@ -9,8 +9,10 @@ intervals for the shape and for the endpoint that respect the discretisation.
 
 Two honesty properties motivate the module:
 
-* the interval-censored likelihood removes the discretisation bias, so the
-  reported shape and endpoint refer to the estimator whose interval is quoted;
+* under correctly specified recording cells the interval-censored likelihood
+  accounts for the discretisation, so the reported shape and endpoint refer to
+  the estimator whose interval is quoted (finite-sample bias and coverage
+  still require assessment);
 * the endpoint interval is obtained by *profiling the endpoint itself* (a
   reparameterisation of the GPD), not by substituting a profiled shape into
   ``M* = u - sigma/xi`` and not by a percentile bootstrap; the profile interval

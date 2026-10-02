@@ -11,7 +11,8 @@
 [![DOI](https://zenodo.org/badge/1328485209.svg)](https://zenodo.org/badge/latestdoi/1328485209)
 
 The current release is **nsevt 1.2.2**. Install the exact version with
-`pip install nsevt==1.2.2`.
+`pip install nsevt==1.2.2`. This exact version is archived with the immutable
+[DOI 10.5281/zenodo.23095921](https://doi.org/10.5281/zenodo.23095921).
 All releases are indexed under the
 [Zenodo concept DOI 10.5281/zenodo.21858232](https://doi.org/10.5281/zenodo.21858232),
 which resolves to the latest archived version.
@@ -22,8 +23,9 @@ which resolves to the latest archived version.
    profile-likelihood interval for the shape and a bootstrap of the finite
    endpoint;
 2. an interval-censored (grouped) GPD fit for discretised data, with
-   profile-likelihood intervals for the shape and the endpoint, which removes
-   the bias that rounding induces in both;
+   profile-likelihood intervals for the shape and the endpoint, which accounts
+   for the rounding when the recording cells are correctly specified
+   (finite-sample bias and coverage still require assessment);
 3. a likelihood-ratio trend test calibrated by complete-block label
    permutation, with an interpolated minimum-detectable effect reported
    together with its underlying effect grid;
@@ -239,8 +241,8 @@ including the manuscript, when they disagree.
 
 ## Reproducibility and tests
 
-The implementation was adapted from research pipelines and then regression-
-checked; it is not represented as a verbatim copy. Randomized routines accept a
+The implementation was adapted from research pipelines and then
+regression-checked; it is not represented as a verbatim copy. Randomized routines accept a
 seed and report the number of successful replicates. Run the validation suite
 with:
 
