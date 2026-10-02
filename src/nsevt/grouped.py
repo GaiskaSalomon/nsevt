@@ -231,6 +231,8 @@ def profile_ci_xi_grouped(
     xi_floor: float = -0.999,
     xi_ceil: float = 5.0,
     fit: GPDGroupedFitDict | None = None,
+    lo_limit: float | None = None,
+    hi_limit: float | None = None,
 ) -> GroupedShapeCI:
     """Profile-likelihood interval for the shape under the grouped likelihood.
 
@@ -241,10 +243,20 @@ def profile_ci_xi_grouped(
     ``xi_ceil`` bound the numerical search; a limit that reaches one of them is
     returned with ``lo_at_bound`` / ``hi_at_bound`` set, to distinguish a
     numerical search boundary from a statistical limit.
+
+    ``lo_limit`` and ``hi_limit`` are accepted for compatibility with nsevt
+    1.0.x, where they named the same search bounds; they are aliases of
+    ``xi_floor`` and ``xi_ceil``.
     """
     values = np.asarray(values, dtype=float)
     if not 0 < level < 1:
         raise ValueError("level must lie strictly between 0 and 1")
+    if lo_limit is not None:
+        xi_floor = float(lo_limit)
+    if hi_limit is not None:
+        xi_ceil = float(hi_limit)
+    if not xi_floor < xi_ceil:
+        raise ValueError("the lower search bound must lie below the upper one")
     if cells is None:
         cells = interval_cells(values[values > threshold], threshold, grid)
     a, b, trunc = cells
@@ -328,6 +340,7 @@ def profile_endpoint_ci(
     gap_init: float = 50.0,
     gap_cap: float = 1.0e7,
     fit: GPDGroupedFitDict | None = None,
+    gap_max: float | None = None,
 ) -> GroupedEndpointCI:
     """Profile-likelihood interval for the finite endpoint ``M*`` itself.
 
@@ -342,10 +355,20 @@ def profile_endpoint_ci(
     ``upper_at_bound=True``, instead of a finite number that is only the search
     boundary. When the unconstrained shape fit is not negative the point
     endpoint is ``inf`` as well and only the lower limit is finite.
+
+    ``gap_max`` is accepted for compatibility with nsevt 1.0.x, where it named
+    the initial search bracket; it is an alias of ``gap_init`` and is never an
+    upper confidence limit. The result reports ``upper_search_limit`` (the
+    largest endpoint examined by the upper search) and
+    ``upper_bracket_expansions`` (how many times that bracket was enlarged).
     """
     values = np.asarray(values, dtype=float)
     if not 0 < level < 1:
         raise ValueError("level must lie strictly between 0 and 1")
+    if gap_max is not None:
+        if not np.isfinite(gap_max) or gap_max <= 0.05:
+            raise ValueError("gap_max must be finite and greater than 0.05")
+        gap_init = float(gap_max)
     if cells is None:
         cells = interval_cells(values[values > threshold], threshold, grid)
     a, b, trunc = (np.asarray(c, dtype=float) for c in cells)
@@ -396,10 +419,12 @@ def profile_endpoint_ci(
     # upper limit: grow the bracket until the profile drops below target; a cap
     # hit means the endpoint is not identified from above at this level
     upper_at_bound = unbounded_point
+    expansions = 0
+    far = max(nu_hat * 2.0, nu_hat + gap_init)
     if not upper_at_bound:
-        far = max(nu_hat * 2.0, nu_hat + gap_init)
         while prof(far)[0] >= target:
             far *= 8.0
+            expansions += 1
             if far >= a_max + gap_cap:
                 upper_at_bound = True
                 break
@@ -422,6 +447,8 @@ def profile_endpoint_ci(
             "ci": (float(threshold + nu_lo), hi_val),
             "upper_at_bound": bool(upper_at_bound),
             "lower_at_bound": bool(lower_at_bound),
+            "upper_search_limit": float(threshold + far),
+            "upper_bracket_expansions": int(expansions),
             "xi": xi_hat, "sigma": float(-xi_hat * nu_hat),
             "level": level,
             "method": "profile likelihood on the reparameterised endpoint"}

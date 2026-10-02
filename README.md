@@ -10,9 +10,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![DOI](https://zenodo.org/badge/1328485209.svg)](https://zenodo.org/badge/latestdoi/1328485209)
 
-The current release is **nsevt 1.2.1**. Install the exact version with
-`pip install nsevt==1.2.1`. This exact version is archived with the immutable
-[DOI 10.5281/zenodo.22549466](https://doi.org/10.5281/zenodo.22549466).
+The current release is **nsevt 1.2.2**. Install the exact version with
+`pip install nsevt==1.2.2`.
 All releases are indexed under the
 [Zenodo concept DOI 10.5281/zenodo.21858232](https://doi.org/10.5281/zenodo.21858232),
 which resolves to the latest archived version.

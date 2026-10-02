@@ -4,6 +4,27 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-02
+
+Numerical results are identical to 1.2.1.
+
+### Added
+
+- `profile_endpoint_ci` reports `upper_search_limit`, the largest endpoint
+  examined by the upper search, and `upper_bracket_expansions`, the number of
+  times that bracket was enlarged. Both document that the search bracket is a
+  numerical device and not an upper confidence limit.
+
+### Changed
+
+- `profile_endpoint_ci` accepts `gap_max` again as an alias of `gap_init`, so
+  code written for the 1.0.x line runs unchanged; a non-finite or too small
+  value raises `ValueError`.
+- `profile_ci_xi_grouped` accepts `lo_limit` and `hi_limit` again as aliases
+  of `xi_floor` and `xi_ceil` (the 1.0.x names of the search bounds).
+- Type-only change in `permutation_pvalue` so that the release gate passes
+  with current NumPy stubs; behavior is unchanged.
+
 ### Documentation
 
 - Record the immutable Zenodo DOI assigned to version 1.2.1.

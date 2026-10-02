@@ -40,6 +40,8 @@ class GroupedEndpointCI(TypedDict):
     ci: tuple[float, float]
     upper_at_bound: bool
     lower_at_bound: bool
+    upper_search_limit: float
+    upper_bracket_expansions: int
     xi: float
     sigma: float
     level: float

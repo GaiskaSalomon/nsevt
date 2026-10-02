@@ -139,13 +139,13 @@ def permutation_pvalue(
     """
     if not np.isfinite(t_obs):
         raise ValueError("t_obs must be finite")
-    t_null = np.asarray(t_null, dtype=float)
-    n_input = int(t_null.size)
-    t_null = t_null[np.isfinite(t_null)]
-    B = int(t_null.size)
+    null = np.asarray(t_null, dtype=float)
+    n_input = int(null.size)
+    null = null[np.isfinite(null)]
+    B = int(null.size)
     if B == 0:
         raise ValueError("t_null must contain at least one finite value")
-    exceed = int(np.sum(t_null >= t_obs))
+    exceed = int(np.sum(null >= t_obs))
     p = (1.0 + exceed) / (B + 1.0) if plus_one else exceed / max(B, 1)
     return {
         "p": float(p),

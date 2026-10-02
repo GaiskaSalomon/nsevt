@@ -198,3 +198,44 @@ def test_gpd_pot_grouped_honours_requested_level():
     # a lower level gives a narrower shape interval
     assert (fit80.xi_ci[1] - fit80.xi_ci[0]) < (fit95.xi_ci[1] - fit95.xi_ci[0])
     assert fit80.xi_ci_at_bound == (False, False)
+
+
+def _bounded_marks(seed=7, n=400, xi=-0.2, sigma=15.0):
+    rng = np.random.default_rng(seed)
+    u = rng.uniform(size=n)
+    z = sigma / xi * ((1.0 - u) ** (-xi) - 1.0)
+    marks = np.round((40.0 + z) / 5.0) * 5.0
+    return marks[marks > 40.0]
+
+
+def test_profile_endpoint_ci_reports_upper_search_diagnostics():
+    marks = _bounded_marks()
+    ep = nsevt.profile_endpoint_ci(marks, 40.0)
+    assert ep["upper_at_bound"] is False
+    assert isinstance(ep["upper_bracket_expansions"], int)
+    assert ep["upper_bracket_expansions"] >= 0
+    # the search limit is a numerical bracket, never below the reported limit
+    assert ep["upper_search_limit"] >= ep["ci"][1]
+
+
+def test_profile_endpoint_ci_gap_max_is_an_alias_of_gap_init():
+    marks = _bounded_marks()
+    legacy = nsevt.profile_endpoint_ci(marks, 40.0, gap_max=5.0)
+    current = nsevt.profile_endpoint_ci(marks, 40.0, gap_init=5.0)
+    assert legacy["ci"] == pytest.approx(current["ci"], rel=1e-12)
+    # the initial bracket is never reported as the upper limit
+    assert legacy["ci"][1] < legacy["upper_search_limit"]
+
+
+def test_profile_endpoint_ci_rejects_bad_gap_max():
+    with pytest.raises(ValueError):
+        nsevt.profile_endpoint_ci(_bounded_marks(), 40.0, gap_max=0.01)
+
+
+def test_profile_ci_xi_grouped_accepts_legacy_search_bounds():
+    marks = _bounded_marks()
+    legacy = nsevt.profile_ci_xi_grouped(marks, 40.0, lo_limit=-0.95, hi_limit=0.60)
+    current = nsevt.profile_ci_xi_grouped(marks, 40.0, xi_floor=-0.95, xi_ceil=0.60)
+    assert legacy["ci"] == pytest.approx(current["ci"], rel=1e-12)
+    with pytest.raises(ValueError):
+        nsevt.profile_ci_xi_grouped(marks, 40.0, lo_limit=0.5, hi_limit=0.1)
